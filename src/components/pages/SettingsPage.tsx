@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import ProfileModal from "@/components/ProfileModal";
 
 interface SettingToggle {
   id: string;
@@ -10,6 +11,11 @@ interface SettingToggle {
   value: boolean;
 }
 
+interface Profile {
+  name: string;
+  email: string;
+}
+
 const initialToggles: SettingToggle[] = [
   { id: "notifications", label: "Уведомления", description: "Push-уведомления о задачах", icon: "Bell", value: true },
   { id: "sounds", label: "Звуки", description: "Звук при завершении задачи", icon: "Volume2", value: false },
@@ -17,8 +23,15 @@ const initialToggles: SettingToggle[] = [
   { id: "weekstart", label: "Неделя с понедельника", description: "Начинать календарь с пн", icon: "CalendarDays", value: true },
 ];
 
+const initialProfile: Profile = { name: "Алексей Иванов", email: "aleksey@example.com" };
+
+const getInitials = (name: string) =>
+  name.trim().split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
+
 const SettingsPage = () => {
   const [toggles, setToggles] = useLocalStorage("diary_settings", initialToggles);
+  const [profile, setProfile] = useLocalStorage<Profile>("diary_profile", initialProfile);
+  const [editOpen, setEditOpen] = useState(false);
 
   const toggle = (id: string) => {
     setToggles((prev) => prev.map((t) => t.id === id ? { ...t, value: !t.value } : t));
@@ -32,12 +45,12 @@ const SettingsPage = () => {
 
       {/* Profile block */}
       <div className="profile-card">
-        <div className="profile-avatar">А</div>
+        <div className="profile-avatar">{getInitials(profile.name)}</div>
         <div className="profile-info">
-          <span className="profile-name">Алексей Иванов</span>
-          <span className="profile-email">aleksey@example.com</span>
+          <span className="profile-name">{profile.name}</span>
+          <span className="profile-email">{profile.email}</span>
         </div>
-        <button className="icon-btn">
+        <button className="icon-btn" onClick={() => setEditOpen(true)}>
           <Icon name="Pencil" size={16} />
         </button>
       </div>
@@ -90,6 +103,13 @@ const SettingsPage = () => {
         <Icon name="LogOut" size={16} />
         Выйти из аккаунта
       </button>
+
+      <ProfileModal
+        open={editOpen}
+        profile={profile}
+        onClose={() => setEditOpen(false)}
+        onSave={(p) => { setProfile(p); setEditOpen(false); }}
+      />
     </div>
   );
 };
