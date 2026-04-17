@@ -1,12 +1,32 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import HomePage from "@/components/pages/HomePage";
+import TasksPage from "@/components/pages/TasksPage";
+import CalendarPage from "@/components/pages/CalendarPage";
+import RemindersPage from "@/components/pages/RemindersPage";
+import SettingsPage from "@/components/pages/SettingsPage";
+import BottomNav from "@/components/BottomNav";
+
+export type Page = "home" | "tasks" | "calendar" | "reminders" | "settings";
 
 const Index = () => {
+  const [activePage, setActivePage] = useState<Page>("home");
+
+  const renderPage = () => {
+    switch (activePage) {
+      case "home": return <HomePage />;
+      case "tasks": return <TasksPage />;
+      case "calendar": return <CalendarPage />;
+      case "reminders": return <RemindersPage />;
+      case "settings": return <SettingsPage />;
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4 color-black text-black">Добро пожаловать!</h1>
-        <p className="text-xl text-gray-600">тут будет отображаться ваш проект</p>
-      </div>
+    <div className="app-shell">
+      <main className="main-content">
+        {renderPage()}
+      </main>
+      <BottomNav activePage={activePage} onChange={setActivePage} />
     </div>
   );
 };
