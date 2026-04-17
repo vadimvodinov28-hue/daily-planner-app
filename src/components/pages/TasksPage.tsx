@@ -2,6 +2,7 @@ import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import TaskModal, { type NewTask } from "@/components/TaskModal";
 import SwipeRow from "@/components/SwipeRow";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 type Priority = "high" | "medium" | "low";
 type Filter = "all" | "active" | "done";
@@ -37,7 +38,7 @@ const formatDate = (iso: string) => {
 };
 
 const TasksPage = () => {
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useLocalStorage("diary_tasks", initialTasks);
   const [filter, setFilter] = useState<Filter>("all");
   const [modalOpen, setModalOpen] = useState(false);
 

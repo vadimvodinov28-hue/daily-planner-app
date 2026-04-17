@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 interface SettingToggle {
   id: string;
@@ -17,7 +18,7 @@ const initialToggles: SettingToggle[] = [
 ];
 
 const SettingsPage = () => {
-  const [toggles, setToggles] = useState(initialToggles);
+  const [toggles, setToggles] = useLocalStorage("diary_settings", initialToggles);
 
   const toggle = (id: string) => {
     setToggles((prev) => prev.map((t) => t.id === id ? { ...t, value: !t.value } : t));

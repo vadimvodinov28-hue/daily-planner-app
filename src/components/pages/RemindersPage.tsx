@@ -2,6 +2,7 @@ import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import ReminderModal, { type NewReminder } from "@/components/ReminderModal";
 import SwipeRow from "@/components/SwipeRow";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 interface Reminder {
   id: number;
@@ -22,7 +23,7 @@ const initialReminders: Reminder[] = [
 ];
 
 const RemindersPage = () => {
-  const [reminders, setReminders] = useState(initialReminders);
+  const [reminders, setReminders] = useLocalStorage("diary_reminders", initialReminders);
   const [modalOpen, setModalOpen] = useState(false);
 
   const toggleActive = (id: number) => {
