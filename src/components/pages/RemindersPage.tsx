@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import ReminderModal, { type NewReminder } from "@/components/ReminderModal";
 
 interface Reminder {
   id: number;
@@ -21,9 +22,22 @@ const initialReminders: Reminder[] = [
 
 const RemindersPage = () => {
   const [reminders, setReminders] = useState(initialReminders);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const toggleActive = (id: number) => {
     setReminders((prev) => prev.map((r) => r.id === id ? { ...r, active: !r.active } : r));
+  };
+
+  const addReminder = (r: NewReminder) => {
+    setReminders((prev) => [...prev, {
+      id: Date.now(),
+      title: r.title,
+      time: r.time,
+      date: r.date,
+      repeat: r.repeat,
+      active: true,
+      icon: r.icon,
+    }]);
   };
 
   const activeCount = reminders.filter((r) => r.active).length;
@@ -32,7 +46,7 @@ const RemindersPage = () => {
     <div className="page-container animate-fade-in">
       <div className="page-header">
         <h1 className="page-title">Напоминания</h1>
-        <button className="icon-btn">
+        <button className="icon-btn" onClick={() => setModalOpen(true)}>
           <Icon name="Plus" size={20} />
         </button>
       </div>
@@ -64,10 +78,16 @@ const RemindersPage = () => {
         ))}
       </div>
 
-      <button className="add-reminder-btn">
+      <button className="add-reminder-btn" onClick={() => setModalOpen(true)}>
         <Icon name="Plus" size={16} />
         Добавить напоминание
       </button>
+
+      <ReminderModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={addReminder}
+      />
     </div>
   );
 };

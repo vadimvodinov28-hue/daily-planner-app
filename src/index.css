@@ -949,6 +949,300 @@
 }
 
 /* ========================
+   FAB
+======================== */
+
+.fab {
+  position: fixed;
+  bottom: 88px;
+  right: calc(50% - 210px + 16px);
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: hsl(var(--foreground));
+  color: hsl(var(--primary-foreground));
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  transition:
+    transform 0.2s,
+    opacity 0.2s;
+  z-index: 50;
+}
+
+.fab:hover {
+  transform: scale(1.06);
+  opacity: 0.92;
+}
+
+@media (max-width: 430px) {
+  .fab {
+    right: 16px;
+  }
+}
+
+/* ========================
+   MODAL
+======================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: overlay-in 0.2s ease forwards;
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-sheet {
+  width: 100%;
+  max-width: 430px;
+  background: hsl(var(--background));
+  border-radius: 24px 24px 0 0;
+  padding: 12px 20px 36px;
+  animation: sheet-in 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.modal-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: hsl(var(--border));
+  margin: 0 auto 20px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.modal-close:hover {
+  background: hsl(var(--border));
+}
+
+.modal-field {
+  margin-bottom: 20px;
+}
+
+.modal-field--half {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.modal-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.modal-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid hsl(var(--border));
+  border-radius: 12px;
+  font-size: 14px;
+  font-family: "Golos Text", sans-serif;
+  color: hsl(var(--foreground));
+  background: hsl(var(--card));
+  outline: none;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+}
+
+.modal-input:focus {
+  border-color: hsl(var(--foreground));
+}
+.modal-input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.modal-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid hsl(var(--border));
+  border-radius: 12px;
+  font-size: 14px;
+  font-family: "Golos Text", sans-serif;
+  color: hsl(var(--foreground));
+  background: hsl(var(--card));
+  outline: none;
+  resize: none;
+  transition: border-color 0.2s;
+}
+
+.modal-textarea:focus {
+  border-color: hsl(var(--foreground));
+}
+
+.modal-textarea::placeholder,
+.modal-input::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.priority-row {
+  display: flex;
+  gap: 8px;
+}
+
+.priority-chip {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  border: 1.5px solid hsl(var(--border));
+  background: hsl(var(--card));
+  font-size: 12px;
+  font-weight: 500;
+  font-family: "Golos Text", sans-serif;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.priority-chip .priority-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cat-chip {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1.5px solid hsl(var(--border));
+  background: hsl(var(--card));
+  font-size: 13px;
+  font-weight: 500;
+  font-family: "Golos Text", sans-serif;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cat-chip--active {
+  background: hsl(var(--foreground));
+  border-color: hsl(var(--foreground));
+  color: hsl(var(--primary-foreground));
+}
+
+.icon-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.icon-pick-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.icon-pick-btn--active {
+  background: hsl(var(--foreground));
+  border-color: hsl(var(--foreground));
+  color: hsl(var(--primary-foreground));
+}
+
+.modal-save-btn {
+  width: 100%;
+  padding: 15px;
+  border-radius: 14px;
+  border: none;
+  background: hsl(var(--foreground));
+  color: hsl(var(--primary-foreground));
+  font-family: "Golos Text", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: opacity 0.2s;
+}
+
+.modal-save-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.modal-save-btn:not(:disabled):hover {
+  opacity: 0.88;
+}
+
+/* ========================
    ANIMATIONS
 ======================== */
 
