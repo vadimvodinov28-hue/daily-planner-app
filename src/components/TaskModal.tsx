@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import { MELODY_OPTIONS, playMelody, type MelodyId } from "@/utils/melodies";
 
@@ -64,10 +64,18 @@ const TaskModal = ({ open, onClose, onSave, defaultDate, initial, editMode, onDe
       setAdvance(initial?.advance ?? "none");
       setAdvanceTime(initial?.advanceTime ?? "");
       setMelody((initial?.melody as MelodyId) ?? "classic");
-      // Сбрасываем скролл в начало при каждом открытии
-      setTimeout(() => sheetRef.current?.scrollTo({ top: 0 }), 0);
+      // useLayoutEffect ниже сбросит скролл до отрисовки
     }
   }, [open, defaultDate, initial]);
+
+  // Сбрасываем скролл сразу при монтировании sheet (он монтируется заново при каждом open=true)
+  const sheetCallbackRef = (node: HTMLDivElement | null) => {
+    if (node) {
+      node.scrollTop = 0;
+      (sheetRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    }
+  };
+
 
   const handleSave = () => {
     if (!text.trim()) return;
@@ -86,7 +94,7 @@ const TaskModal = ({ open, onClose, onSave, defaultDate, initial, editMode, onDe
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" ref={sheetRef} onClick={(e) => e.stopPropagation()}>
+      <div className="modal-sheet" ref={sheetCallbackRef} onClick={(e) => e.stopPropagation()}>
         <div className="modal-handle" />
 
         <div className="modal-header">
