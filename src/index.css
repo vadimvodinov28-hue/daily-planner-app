@@ -743,7 +743,9 @@
 
 .cal-grid-header {
   display: grid;
+  /* 7 колонок + правый отступ под кнопку раскрытия (28px кнопка + 4px gap) */
   grid-template-columns: repeat(7, 1fr);
+  padding-right: calc(28px + 4px);
   margin-bottom: 8px;
 }
 
