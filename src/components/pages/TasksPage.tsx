@@ -14,6 +14,7 @@ interface Task {
   priority: Priority;
   category: string;
   date: string;
+  time?: string;
   advance?: string;
   advanceTime?: string;
 }
@@ -70,8 +71,9 @@ const TasksPage = () => {
       priority: newTask.priority,
       category: newTask.category,
       date: newTask.date,
-      advance: (newTask as Task).advance,
-      advanceTime: (newTask as Task).advanceTime,
+      time: newTask.time,
+      advance: newTask.advance,
+      advanceTime: newTask.advanceTime,
     }]);
   };
 
@@ -185,7 +187,13 @@ const TasksPage = () => {
                   <span className="task-category">{task.category}</span>
                   <span className="task-category" style={{ opacity: 0.4 }}>·</span>
                   <span className="task-category">{formatDate(task.date)}</span>
-                  {task.advance && task.advance !== "none" && (
+                  {task.time && (
+                    <span className="task-time-badge">
+                      <Icon name="Clock" size={10} />
+                      {task.time}
+                    </span>
+                  )}
+                  {task.advance && task.advance !== "none" && task.time && (
                     <span className="task-advance">
                       <Icon name="Bell" size={10} />
                       {task.advance === "custom" ? task.advanceTime : task.advance}

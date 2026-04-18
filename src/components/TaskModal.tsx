@@ -8,6 +8,7 @@ export interface NewTask {
   priority: Priority;
   category: string;
   date: string;
+  time: string;
   advance: string;
   advanceTime: string;
 }
@@ -29,11 +30,10 @@ const priorityOptions: { value: Priority; label: string; color: string }[] = [
 
 const advanceOptions = [
   { value: "none", label: "Нет" },
+  { value: "За 15 мин", label: "За 15 мин" },
   { value: "За 1 час", label: "За 1 час" },
   { value: "За 3 часа", label: "За 3 часа" },
-  { value: "За 6 часов", label: "За 6 часов" },
   { value: "За 1 день", label: "За 1 день" },
-  { value: "За 2 дня", label: "За 2 дня" },
   { value: "custom", label: "Своё время" },
 ];
 
@@ -42,6 +42,7 @@ const TaskModal = ({ open, onClose, onSave, defaultDate }: Props) => {
   const [priority, setPriority] = useState<Priority>("medium");
   const [category, setCategory] = useState("Работа");
   const [date, setDate] = useState(() => defaultDate ?? new Date().toISOString().split("T")[0]);
+  const [time, setTime] = useState("");
   const [advance, setAdvance] = useState("none");
   const [advanceTime, setAdvanceTime] = useState("");
 
@@ -51,6 +52,7 @@ const TaskModal = ({ open, onClose, onSave, defaultDate }: Props) => {
       setPriority("medium");
       setCategory("Работа");
       setDate(defaultDate ?? new Date().toISOString().split("T")[0]);
+      setTime("");
       setAdvance("none");
       setAdvanceTime("");
     }
@@ -58,7 +60,7 @@ const TaskModal = ({ open, onClose, onSave, defaultDate }: Props) => {
 
   const handleSave = () => {
     if (!text.trim()) return;
-    onSave({ text: text.trim(), priority, category, date, advance, advanceTime });
+    onSave({ text: text.trim(), priority, category, date, time, advance, advanceTime });
     onClose();
   };
 
@@ -89,15 +91,30 @@ const TaskModal = ({ open, onClose, onSave, defaultDate }: Props) => {
           />
         </div>
 
-        {/* Date */}
-        <div className="modal-field">
-          <label className="modal-label">Дата</label>
-          <input
-            type="date"
-            className="modal-input"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+        {/* Date + Time row */}
+        <div className="modal-row-2">
+          <div className="modal-field">
+            <label className="modal-label">Дата</label>
+            <input
+              type="date"
+              className="modal-input"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+          <div className="modal-field">
+            <label className="modal-label">
+              <Icon name="Clock" size={13} />
+              Время
+            </label>
+            <input
+              type="time"
+              className="modal-input"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              placeholder="не задано"
+            />
+          </div>
         </div>
 
         {/* Priority */}
@@ -134,36 +151,44 @@ const TaskModal = ({ open, onClose, onSave, defaultDate }: Props) => {
           </div>
         </div>
 
-        {/* Advance notification */}
-        <div className="modal-field">
-          <label className="modal-label">
-            <Icon name="Bell" size={13} />
-            Напомнить заранее
-          </label>
-          <div className="chip-row chip-row--wrap">
-            {advanceOptions.map((a) => (
-              <button
-                key={a.value}
-                className={`cat-chip ${advance === a.value ? "cat-chip--active" : ""}`}
-                onClick={() => setAdvance(a.value)}
-              >
-                {a.label}
-              </button>
-            ))}
-          </div>
-          {advance === "custom" && (
-            <div className="advance-custom">
-              <input
-                type="time"
-                className="modal-input"
-                value={advanceTime}
-                onChange={(e) => setAdvanceTime(e.target.value)}
-                placeholder="Время предупреждения"
-              />
-              <span className="advance-custom-hint">Укажите точное время напоминания</span>
+        {/* Advance notification — только если задано время */}
+        {time && (
+          <div className="modal-field">
+            <label className="modal-label">
+              <Icon name="Bell" size={13} />
+              Напомнить заранее
+            </label>
+            <div className="chip-row chip-row--wrap">
+              {advanceOptions.map((a) => (
+                <button
+                  key={a.value}
+                  className={`cat-chip ${advance === a.value ? "cat-chip--active" : ""}`}
+                  onClick={() => setAdvance(a.value)}
+                >
+                  {a.label}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+            {advance === "custom" && (
+              <div className="advance-custom">
+                <input
+                  type="time"
+                  className="modal-input"
+                  value={advanceTime}
+                  onChange={(e) => setAdvanceTime(e.target.value)}
+                />
+                <span className="advance-custom-hint">Точное время напоминания в этот день</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!time && (
+          <div className="modal-hint-notif">
+            <Icon name="BellOff" size={13} />
+            Укажите время — появится настройка уведомления
+          </div>
+        )}
 
         <button className="modal-save-btn" onClick={handleSave} disabled={!text.trim()}>
           Добавить задачу

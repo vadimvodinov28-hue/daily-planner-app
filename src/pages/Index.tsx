@@ -6,11 +6,14 @@ import RemindersPage from "@/components/pages/RemindersPage";
 import SettingsPage from "@/components/pages/SettingsPage";
 import BottomNav from "@/components/BottomNav";
 import InstallBanner from "@/components/InstallBanner";
+import NotificationPermission from "@/components/NotificationPermission";
+import { useTaskNotifications } from "@/hooks/useTaskNotifications";
 
 export type Page = "home" | "tasks" | "calendar" | "reminders" | "settings";
 
 const Index = () => {
   const [activePage, setActivePage] = useState<Page>("home");
+  useTaskNotifications();
 
   const renderPage = () => {
     switch (activePage) {
@@ -24,6 +27,7 @@ const Index = () => {
 
   return (
     <div className="app-shell">
+      <NotificationPermission />
       <InstallBanner />
       <main className="main-content">
         {renderPage()}
