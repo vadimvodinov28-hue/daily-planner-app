@@ -8,13 +8,14 @@ import BottomNav from "@/components/BottomNav";
 import InstallBanner from "@/components/InstallBanner";
 import NotificationPermission from "@/components/NotificationPermission";
 import { useTaskNotifications } from "@/hooks/useTaskNotifications";
+import Icon from "@/components/ui/icon";
 
 export type Page = "home" | "tasks" | "calendar" | "reminders" | "settings";
 
 const Index = () => {
   const [activePage, setActivePage] = useState<Page>("home");
   const [exitPrompt, setExitPrompt] = useState(false);
-  useTaskNotifications();
+  const { activeAlarms, dismissAlarm, snoozeAlarm } = useTaskNotifications();
 
   // Пушим state в History при каждой смене страницы
   const navigateTo = useCallback((page: Page) => {
@@ -78,6 +79,35 @@ const Index = () => {
         {renderPage()}
       </main>
       <BottomNav activePage={activePage} onChange={navigateTo} />
+
+      {/* Плашки активных сигналов */}
+      {activeAlarms.map((alarm) => (
+        <div key={alarm.tag} className="alarm-banner">
+          <div className="alarm-banner__icon">
+            <Icon name="Bell" size={18} />
+          </div>
+          <div className="alarm-banner__info">
+            <span className="alarm-banner__title">{alarm.title}</span>
+            <span className="alarm-banner__body">{alarm.body.replace(/^\S+\s/, "")}</span>
+          </div>
+          <div className="alarm-banner__actions">
+            <button
+              className="alarm-banner__btn alarm-banner__btn--snooze"
+              onClick={() => snoozeAlarm(alarm.tag)}
+            >
+              <Icon name="Clock" size={13} />
+              5 мин
+            </button>
+            <button
+              className="alarm-banner__btn alarm-banner__btn--dismiss"
+              onClick={() => dismissAlarm(alarm.tag)}
+            >
+              <Icon name="BellOff" size={13} />
+              Выкл
+            </button>
+          </div>
+        </div>
+      ))}
 
       {/* Плашка подтверждения выхода */}
       {exitPrompt && (

@@ -1,4 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+
+export interface ActiveAlarm {
+  tag: string;
+  title: string;
+  body: string;
+}
 
 interface Task {
   id: number;
@@ -202,24 +208,41 @@ function registerSW() {
 /* ── Главный хук ── */
 export function useTaskNotifications() {
   const firedRef = useRef<Set<string>>(new Set());
-  const snoozedRef = useRef<Record<string, number>>({});
   const repeatsRef = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+  const snoozeTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const [activeAlarms, setActiveAlarms] = useState<ActiveAlarm[]>([]);
 
   useEffect(() => {
     registerSW();
   }, []);
 
-  useEffect(() => {
-    // Функция dismiss — останавливает звук и повтор по тегу
-    const dismiss = (tag: string) => {
-      // Ищем корневой тег (убираем суффикс -r-...)
-      const rootTag = tag.replace(/-r-\d+$/, "");
-      firedRef.current.add(rootTag + "-dismissed");
-      const interval = repeatsRef.current[rootTag];
-      if (interval) { clearInterval(interval); delete repeatsRef.current[rootTag]; }
-    };
+  // Выключить сигнал (по тегу)
+  const dismissAlarm = useCallback((tag: string) => {
+    const rootTag = tag.replace(/-r-\d+$/, "");
+    firedRef.current.add(rootTag + "-dismissed");
+    const interval = repeatsRef.current[rootTag];
+    if (interval) { clearInterval(interval); delete repeatsRef.current[rootTag]; }
+    setActiveAlarms((prev) => prev.filter((a) => a.tag !== rootTag));
+  }, []);
 
-    // Регистрируем callback чтобы SW мог вызвать dismiss
+  // Отложить сигнал на 5 минут
+  const snoozeAlarm = useCallback((tag: string) => {
+    const rootTag = tag.replace(/-r-\d+$/, "");
+    // Убираем из активных
+    setActiveAlarms((prev) => prev.filter((a) => a.tag !== rootTag));
+    // Останавливаем повтор
+    const interval = repeatsRef.current[rootTag];
+    if (interval) { clearInterval(interval); delete repeatsRef.current[rootTag]; }
+    // Через 5 минут снова показываем плашку
+    snoozeTimersRef.current[rootTag] = setTimeout(() => {
+      firedRef.current.delete(rootTag);
+      firedRef.current.delete(rootTag + "-dismissed");
+    }, 5 * 60 * 1000);
+  }, []);
+
+  useEffect(() => {
+    const dismiss = (tag: string) => dismissAlarm(tag);
+
     _swDismissCallback = dismiss;
 
     const fire = (item: { fireAt: number; tag: string; title: string; body: string }) => {
@@ -230,7 +253,13 @@ export function useTaskNotifications() {
       firedRef.current.add(tag);
       sendNotification(title, body, tag, dismiss);
 
-      // Повторять каждые 3 минуты пока не выключат (нажмут в уведомлении или тапнут на баннер)
+      // Показываем плашку в приложении
+      setActiveAlarms((prev) => {
+        if (prev.find((a) => a.tag === tag)) return prev;
+        return [...prev, { tag, title, body }];
+      });
+
+      // Повторять каждые 3 минуты пока не выключат
       const interval = setInterval(() => {
         if (firedRef.current.has(tag + "-dismissed")) {
           clearInterval(interval);
@@ -238,6 +267,11 @@ export function useTaskNotifications() {
           return;
         }
         sendNotification(title, body, tag + "-r-" + Date.now(), dismiss);
+        // Снова показываем плашку если закрыли
+        setActiveAlarms((prev) => {
+          if (prev.find((a) => a.tag === tag)) return prev;
+          return [...prev, { tag, title, body }];
+        });
       }, 3 * 60 * 1000);
 
       repeatsRef.current[tag] = interval;
@@ -249,7 +283,7 @@ export function useTaskNotifications() {
       if (!notifOn || Notification.permission !== "granted") return;
 
       const now = Date.now();
-      const WINDOW = 90_000; // 90 сек
+      const WINDOW = 90_000;
 
       const tasks: Task[] = JSON.parse(localStorage.getItem("diary_tasks") || "[]");
       const reminders: Reminder[] = JSON.parse(localStorage.getItem("diary_reminders") || "[]");
@@ -271,6 +305,9 @@ export function useTaskNotifications() {
     return () => {
       clearInterval(interval);
       Object.values(repeatsRef.current).forEach(clearInterval);
+      Object.values(snoozeTimersRef.current).forEach(clearTimeout);
     };
-  }, []);
+  }, [dismissAlarm]);
+
+  return { activeAlarms, dismissAlarm, snoozeAlarm };
 }
