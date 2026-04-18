@@ -2507,6 +2507,31 @@
   text-decoration: line-through;
 }
 
+.cal-day-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  padding: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+  border: 1.5px solid hsl(var(--border));
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: "Golos Text", sans-serif;
+  transition: all 0.15s;
+  margin-top: 2px;
+}
+
+.cal-day-expand-btn:hover {
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--foreground));
+  background: hsl(var(--muted));
+}
+
 /* ========================
    TASK PREVIEW POPUP
 ======================== */

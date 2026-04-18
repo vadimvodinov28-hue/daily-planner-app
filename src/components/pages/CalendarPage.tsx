@@ -45,6 +45,7 @@ const CalendarPage = () => {
   const [selected, setSelected] = useState(now.getDate());
   const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set());
   const [allExpanded, setAllExpanded] = useState(false);
+  const [dayListExpanded, setDayListExpanded] = useState(false);
   const [tasks, setTasks] = useLocalStorage<Task[]>("diary_tasks", []);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalDate, setModalDate] = useState(toIso(now.getFullYear(), now.getMonth(), now.getDate()));
@@ -188,7 +189,7 @@ const CalendarPage = () => {
                       <button
                         key={di}
                         className={`cal-cell ${isSelected ? "cal-cell--selected" : ""} ${isToday && !isSelected ? "cal-cell--today" : ""} ${weekend && !isSelected ? "cal-cell--weekend" : ""}`}
-                        onClick={() => { setSelected(day); }}
+                        onClick={() => { setSelected(day); setDayListExpanded(false); }}
                       >
                         <span className="cal-cell-num">{day}</span>
                         {dayTasks.length > 0 && <span className="cal-dot" />}
@@ -297,9 +298,8 @@ const CalendarPage = () => {
           </div>
         ) : (
           <div className="cal-day-task-list">
-            {selectedTasks.map((t) => (
+            {(dayListExpanded ? selectedTasks : selectedTasks.slice(0, 3)).map((t) => (
               <div key={t.id} className={`cal-day-task-item ${t.done ? "cal-day-task-item--done" : ""}`}>
-                {/* Галочка СЛЕВА */}
                 <button
                   className={`task-check ${t.done ? "task-check--done" : ""}`}
                   onClick={(e) => { e.stopPropagation(); toggleTask(t.id); }}
@@ -336,6 +336,18 @@ const CalendarPage = () => {
                 </button>
               </div>
             ))}
+            {selectedTasks.length > 3 && (
+              <button
+                className="cal-day-expand-btn"
+                onClick={() => setDayListExpanded((v) => !v)}
+              >
+                {dayListExpanded ? (
+                  <><Icon name="ChevronUp" size={13} />Свернуть</>
+                ) : (
+                  <><Icon name="ChevronDown" size={13} />Ещё {selectedTasks.length - 3} задач</>
+                )}
+              </button>
+            )}
           </div>
         )}
       </div>
