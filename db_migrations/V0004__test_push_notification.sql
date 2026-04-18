@@ -1,0 +1,2 @@
+INSERT INTO t_p85754813_daily_planner_app.tasks (user_id, text, done, priority, category, date, time, advance, advance_time)
+VALUES (2, '🚀 Тест push-уведомления от Юры', false, 'high', 'Тест', '2026-04-18', '16:44', 'none', '');
