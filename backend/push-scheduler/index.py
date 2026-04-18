@@ -1,14 +1,86 @@
 import json
 import os
-import time
 import psycopg2
 from datetime import datetime, timedelta
 from pywebpush import webpush, WebPushException
 
 SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p85754813_daily_planner_app")
-VAPID_PRIVATE = os.environ.get("VAPID_PRIVATE_KEY", "")
 VAPID_PUBLIC = os.environ.get("VAPID_PUBLIC_KEY", "")
 VAPID_CLAIMS = {"sub": "mailto:push@diary.app"}
+
+
+def normalize_vapid_private_key(raw: str) -> str:
+    """Нормализует VAPID private key:
+    - заменяет литеральные \\n на реальные переносы
+    - если PEM одной строкой — восстанавливает стандартный многострочный PEM."""
+    if not raw:
+        return raw
+    s = raw.strip()
+    # Заменяем литеральные \n которые могли попасть при копипасте
+    if "\\n" in s and "\n" not in s:
+        s = s.replace("\\n", "\n")
+    # Уже с переносами и не нуждается в доработке
+    if "\n" in s and "-----BEGIN" in s and "-----END" in s:
+        # Нормализуем: извлекаем тело заново и переформатируем (на случай неправильных разрывов)
+        for header, footer in [
+            ("-----BEGIN EC PRIVATE KEY-----", "-----END EC PRIVATE KEY-----"),
+            ("-----BEGIN PRIVATE KEY-----", "-----END PRIVATE KEY-----"),
+        ]:
+            if header in s and footer in s:
+                body = s.split(header, 1)[1].split(footer, 1)[0]
+                body = "".join(body.split())  # убираем все whitespace
+                lines = [body[i:i + 64] for i in range(0, len(body), 64)]
+                return header + "\n" + "\n".join(lines) + "\n" + footer
+        return s
+    # Однострочный PEM: извлекаем base64 тело и форматируем по 64 символа
+    for header, footer in [
+        ("-----BEGIN EC PRIVATE KEY-----", "-----END EC PRIVATE KEY-----"),
+        ("-----BEGIN PRIVATE KEY-----", "-----END PRIVATE KEY-----"),
+    ]:
+        if header in s and footer in s:
+            body = s.split(header, 1)[1].split(footer, 1)[0].strip()
+            body = "".join(body.split())
+            lines = [body[i:i + 64] for i in range(0, len(body), 64)]
+            return header + "\n" + "\n".join(lines) + "\n" + footer
+    return s
+
+
+VAPID_PRIVATE = normalize_vapid_private_key(os.environ.get("VAPID_PRIVATE_KEY", ""))
+
+
+def convert_ec_to_pkcs8(pem: str) -> str:
+    """Конвертирует PEM из SEC1 (EC PRIVATE KEY) в PKCS8 (PRIVATE KEY)."""
+    try:
+        from cryptography.hazmat.primitives import serialization
+        key = serialization.load_pem_private_key(pem.encode(), password=None)
+        pkcs8 = key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+        return pkcs8.decode()
+    except Exception as e:
+        print(f"[push] convert_ec_to_pkcs8 failed: {type(e).__name__}: {e}")
+        return pem
+
+
+def extract_raw_private_key(pem: str) -> str:
+    """Извлекает 32-байтный приватный ключ из PEM в base64url (без padding).
+    py-vapid принимает такой формат и не требует ASN.1 парсинга."""
+    try:
+        import base64
+        from cryptography.hazmat.primitives import serialization
+        key = serialization.load_pem_private_key(pem.encode(), password=None)
+        raw_int = key.private_numbers().private_value
+        raw_bytes = raw_int.to_bytes(32, "big")
+        return base64.urlsafe_b64encode(raw_bytes).decode().rstrip("=")
+    except Exception as e:
+        print(f"[push] extract_raw_private_key failed: {type(e).__name__}: {e}")
+        return ""
+
+
+VAPID_PRIVATE_PKCS8 = convert_ec_to_pkcs8(VAPID_PRIVATE) if VAPID_PRIVATE else ""
+VAPID_PRIVATE_RAW = extract_raw_private_key(VAPID_PRIVATE) if VAPID_PRIVATE else ""
 
 ADVANCE_MINUTES = {
     "За 15 мин": 15,
@@ -87,15 +159,29 @@ def get_reminder_fire(reminder_id, title, time_val, tz_offset_min=0):
 
 def send_push(subscription: dict, title: str, body: str, tag: str):
     sub_clean = {k: v for k, v in subscription.items() if k != "tz_offset_min"}
+    # Приоритет: raw base64url → PKCS8 → оригинал
+    key_to_use = VAPID_PRIVATE_RAW or VAPID_PRIVATE_PKCS8 or VAPID_PRIVATE
     webpush(
         subscription_info=sub_clean,
         data=json.dumps({"title": title, "body": body, "tag": tag}),
-        vapid_private_key=VAPID_PRIVATE,
+        vapid_private_key=key_to_use,
         vapid_claims=VAPID_CLAIMS,
     )
 
-def run_tick(conn, cur, now: datetime) -> tuple[int, int, int]:
-    """Один тик: проверяет задачи/напоминания и шлёт пуши. Возвращает (sent, errors, subs)."""
+def handler(event: dict, context) -> dict:
+    """Планировщик: один быстрый тик. Окно 6 минут — чтобы ловить срабатывания между вызовами cron.
+    Дедупликация через push_fired не даёт отправить одно уведомление дважды."""
+    headers = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS"}
+
+    if event.get("httpMethod") == "OPTIONS":
+        return {"statusCode": 200, "headers": headers, "body": ""}
+
+    if not VAPID_PRIVATE or not VAPID_PUBLIC:
+        return {"statusCode": 500, "headers": headers, "body": json.dumps({"error": "VAPID keys not configured"})}
+
+    conn = get_conn()
+    cur = conn.cursor()
+
     cur.execute(f"""
         SELECT ps.user_key, ps.subscription, ps.user_id,
                COALESCE((ps.subscription->>'tz_offset_min')::int, 0) as tz
@@ -104,11 +190,12 @@ def run_tick(conn, cur, now: datetime) -> tuple[int, int, int]:
     """)
     subscriptions = cur.fetchall()
 
-    # Окно 90 секунд — с запасом перекрывает интервал между тиками
-    window = timedelta(seconds=90)
+    now = datetime.utcnow()
+    # Окно 10 минут — с большим запасом перекрывает любые задержки cron
+    window = timedelta(minutes=10)
     sent = 0
     errors = 0
-    print(f"[push] tick {now.isoformat()}Z subs={len(subscriptions)}")
+    print(f"[push] tick {now.isoformat()}Z subs={len(subscriptions)} window=6min")
 
     for (user_key, subscription, user_id, tz_offset) in subscriptions:
         all_items = []
@@ -131,7 +218,10 @@ def run_tick(conn, cur, now: datetime) -> tuple[int, int, int]:
             if ft:
                 all_items.append(ft)
 
+        print(f"[push] user_id={user_id} items={len(all_items)}")
+
         for item in all_items:
+            # Срабатывание если время уже наступило и не позже чем 6 минут назад
             if not (item["fire_at"] <= now <= item["fire_at"] + window):
                 continue
 
@@ -167,45 +257,6 @@ def run_tick(conn, cur, now: datetime) -> tuple[int, int, int]:
                 print(f"[push] Exception {type(ex).__name__}: {ex}")
                 errors += 1
 
-    return sent, errors, len(subscriptions)
-
-
-def handler(event: dict, context) -> dict:
-    """Планировщик: за один вызов тикает 5 раз с интервалом 60 сек, покрывая ~5 минут."""
-    headers = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS"}
-
-    if event.get("httpMethod") == "OPTIONS":
-        return {"statusCode": 200, "headers": headers, "body": ""}
-
-    if not VAPID_PRIVATE or not VAPID_PUBLIC:
-        return {"statusCode": 500, "headers": headers, "body": json.dumps({"error": "VAPID keys not configured"})}
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    total_sent = 0
-    total_errors = 0
-    total_subs = 0
-    TICKS = 3
-    INTERVAL = 55
-
-    for i in range(TICKS):
-        now = datetime.utcnow()
-        try:
-            s, e, n = run_tick(conn, cur, now)
-            total_sent += s
-            total_errors += e
-            total_subs = n
-        except Exception as ex:
-            print(f"[push] tick error: {type(ex).__name__}: {ex}")
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-
-        if i < TICKS - 1:
-            time.sleep(INTERVAL)
-
     cur.close()
     conn.close()
-    return {"statusCode": 200, "headers": headers, "body": json.dumps({"sent": total_sent, "errors": total_errors, "checked": total_subs, "ticks": TICKS})}
+    return {"statusCode": 200, "headers": headers, "body": json.dumps({"sent": sent, "errors": errors, "checked": len(subscriptions)})}
