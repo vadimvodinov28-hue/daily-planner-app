@@ -1,9 +1,29 @@
 /* ── Service Worker — Ежедневник ── */
 
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+const CRON_URL = "https://functions.poehali.dev/b9e8fd82-350a-4c3b-b8d0-1a214e46f2f4";
+let cronTimer = null;
 
-/* ── Получаем push с сервера ── */
+self.addEventListener("install", () => self.skipWaiting());
+
+self.addEventListener("activate", (e) => {
+  e.waitUntil(self.clients.claim());
+  startCron();
+});
+
+/* ── Фоновый cron прямо в SW: работает пока браузер запущен (вкладка закрыта — ок) ── */
+function startCron() {
+  if (cronTimer) return;
+  setTimeout(() => {
+    pingScheduler();
+    cronTimer = setInterval(pingScheduler, 60_000);
+  }, 3000);
+}
+
+function pingScheduler() {
+  fetch(CRON_URL, { method: "GET" }).catch(() => {});
+}
+
+/* ── Получаем push с сервера (браузер полностью закрыт — ОС будит SW) ── */
 self.addEventListener("push", (e) => {
   e.waitUntil((async () => {
     let data = { title: "Ежедневник", body: "Напоминание о задаче", tag: "push-" + Date.now() };
@@ -23,7 +43,7 @@ self.addEventListener("push", (e) => {
       data,
     });
 
-    // Уведомляем открытые вкладки — пусть сыграют звук
+    // Если вкладка открыта — просим сыграть звук
     const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     clients.forEach((c) => c.postMessage({ type: "PLAY_ALARM", tag: data.tag }));
   })());
