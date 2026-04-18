@@ -191,8 +191,9 @@ def handler(event: dict, context) -> dict:
     subscriptions = cur.fetchall()
 
     now = datetime.utcnow()
-    # Окно 10 минут — с большим запасом перекрывает любые задержки cron
-    window = timedelta(minutes=10)
+    # Окно 15 минут — с большим запасом перекрывает паузы между вызовами cron
+    # Дедупликация через push_fired не даёт отправить одно и то же уведомление дважды
+    window = timedelta(minutes=15)
     sent = 0
     errors = 0
     print(f"[push] tick {now.isoformat()}Z subs={len(subscriptions)} window=6min")
