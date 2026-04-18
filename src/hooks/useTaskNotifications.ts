@@ -22,7 +22,7 @@ interface Reminder {
   advance: string;
 }
 
-const advanceMinutes: Record<string, number> = {
+const ADVANCE_MINUTES: Record<string, number> = {
   "За 15 мин": 15,
   "За 1 час": 60,
   "За 3 часа": 180,
@@ -31,149 +31,229 @@ const advanceMinutes: Record<string, number> = {
   "За 2 дня": 2880,
 };
 
-function playBeep() {
+/* ── Громкий звук с нарастанием ── */
+function playAlarm(repeat = false) {
   try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    const times = [0, 0.25, 0.5];
-    times.forEach((t) => {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtx();
+
+    const playTone = (startTime: number, freq: number, dur: number, vol: number) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0, ctx.currentTime + t);
-      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + t + 0.05);
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + t + 0.2);
-      osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + 0.25);
-    });
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(vol, startTime + 0.05);
+      gain.gain.linearRampToValueAtTime(vol * 0.7, startTime + dur - 0.05);
+      gain.gain.linearRampToValueAtTime(0, startTime + dur);
+      osc.start(startTime);
+      osc.stop(startTime + dur);
+    };
+
+    // Мелодия: три нарастающих тона
+    const now = ctx.currentTime;
+    playTone(now + 0.0, 523, 0.2, 0.9);  // C5
+    playTone(now + 0.25, 659, 0.2, 0.9); // E5
+    playTone(now + 0.50, 784, 0.35, 1.0); // G5
+    playTone(now + 0.90, 1047, 0.4, 1.0); // C6
+
+    if (repeat) {
+      setTimeout(() => playAlarm(false), 1800);
+    }
   } catch {
     // AudioContext недоступен
   }
 }
 
-function sendNotification(title: string, body: string, tag: string) {
+/* ── Отправка уведомления ── */
+function sendNotification(
+  title: string,
+  body: string,
+  tag: string,
+  onDismiss?: (tag: string) => void
+) {
   if (Notification.permission !== "granted") return;
+
   try {
-    new Notification(title, {
+    const n = new Notification(title, {
       body,
       tag,
       icon: "/favicon.svg",
       badge: "/favicon.svg",
-      vibrate: [200, 100, 200],
+      vibrate: [300, 100, 300, 100, 300],
+      requireInteraction: true,
     } as NotificationOptions);
+
+    n.onclick = () => { n.close(); onDismiss?.(tag); };
+    n.onclose = () => onDismiss?.(tag);
   } catch {
-    // fallback — не поддерживается
+    // fallback
   }
-  playBeep();
+
+  playAlarm(true);
 }
 
-function getTaskFireTimes(task: Task): { fireAt: number; tag: string; label: string }[] {
-  if (task.done || !task.date) return [];
-  const results: { fireAt: number; tag: string; label: string }[] = [];
+/* ── Время срабатывания задачи ── */
+function getTaskFireTimes(task: Task) {
+  if (task.done || !task.date || !task.time) return [];
+  const results: { fireAt: number; tag: string; title: string; body: string }[] = [];
 
-  if (task.time) {
-    const [h, m] = task.time.split(":").map(Number);
-    const base = new Date(task.date + "T" + task.time);
-    if (!isNaN(base.getTime())) {
-      results.push({
-        fireAt: base.getTime(),
-        tag: `task-${task.id}-exact`,
-        label: `Время задачи: ${task.text}`,
-      });
+  const base = new Date(task.date + "T" + task.time + ":00");
+  if (isNaN(base.getTime())) return [];
 
-      const advMin = task.advance && task.advance !== "none" && task.advance !== "custom"
-        ? advanceMinutes[task.advance] ?? 0
-        : 0;
-      const customTime = task.advance === "custom" && task.advanceTime
-        ? task.advanceTime
-        : null;
+  results.push({
+    fireAt: base.getTime(),
+    tag: `task-${task.id}-exact`,
+    title: "Ежедневник",
+    body: `🔔 ${task.text}`,
+  });
 
-      if (advMin > 0) {
-        const advFire = base.getTime() - advMin * 60 * 1000;
-        results.push({
-          fireAt: advFire,
-          tag: `task-${task.id}-advance`,
-          label: `Через ${advMin < 60 ? advMin + " мин" : advMin / 60 + " ч"}: ${task.text}`,
-        });
-      }
+  const advMin = task.advance && task.advance !== "none" && task.advance !== "custom"
+    ? ADVANCE_MINUTES[task.advance] ?? 0 : 0;
 
-      if (customTime) {
-        const [ch, cm] = customTime.split(":").map(Number);
-        const custom = new Date(task.date);
-        custom.setHours(ch, cm, 0, 0);
-        results.push({
-          fireAt: custom.getTime(),
-          tag: `task-${task.id}-custom`,
-          label: `Напоминание: ${task.text}`,
-        });
-      }
-    }
+  if (advMin > 0) {
+    results.push({
+      fireAt: base.getTime() - advMin * 60 * 1000,
+      tag: `task-${task.id}-advance`,
+      title: "Напоминание",
+      body: `⏰ ${advMin < 60 ? advMin + " мин" : advMin / 60 + " ч"} до: ${task.text}`,
+    });
+  }
+
+  if (task.advance === "custom" && task.advanceTime) {
+    const [ch, cm] = task.advanceTime.split(":").map(Number);
+    const custom = new Date(task.date + "T00:00:00");
+    custom.setHours(ch, cm, 0, 0);
+    results.push({
+      fireAt: custom.getTime(),
+      tag: `task-${task.id}-custom`,
+      title: "Напоминание",
+      body: `📌 ${task.text}`,
+    });
   }
 
   return results;
 }
 
-function getReminderFireTime(r: Reminder): { fireAt: number; tag: string } | null {
-  if (!r.active || !r.time) return null;
+/* ── Время срабатывания напоминания ── */
+function pad(n: number) { return String(n).padStart(2, "0"); }
+function getTodayIso() {
   const now = new Date();
-  const [h, m] = r.time.split(":").map(Number);
-
-  let base: Date;
-  if (r.repeat === "daily" || r.repeat === "weekdays" || r.repeat === "weekly" || r.repeat === "once") {
-    base = new Date();
-    base.setHours(h, m, 0, 0);
-    if (base.getTime() < now.getTime()) {
-      base.setDate(base.getDate() + 1);
-    }
-  } else {
-    return null;
-  }
-
-  return { fireAt: base.getTime(), tag: `reminder-${r.id}` };
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+function getReminderFireTime(r: Reminder) {
+  if (!r.active || !r.time) return null;
+  const [h, m] = r.time.split(":").map(Number);
+  const base = new Date();
+  base.setHours(h, m, 0, 0);
+  if (base.getTime() < Date.now()) base.setDate(base.getDate() + 1);
+  return {
+    fireAt: base.getTime(),
+    tag: `reminder-${r.id}-${getTodayIso()}`,
+    title: "Напоминание",
+    body: `🔔 ${r.title} · ${r.time}`,
+  };
+}
+
+/* ── Регистрация Service Worker ── */
+function registerSW() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("/sw.js", { scope: "/" }).then((reg) => {
+    console.log("[SW] registered", reg.scope);
+
+    // Слушаем сообщения от SW
+    navigator.serviceWorker.addEventListener("message", (e) => {
+      if (e.data?.type === "GET_DATA") {
+        const port = e.ports[0];
+        const tasks = JSON.parse(localStorage.getItem("diary_tasks") || "[]");
+        const reminders = JSON.parse(localStorage.getItem("diary_reminders") || "[]");
+        const settings = JSON.parse(localStorage.getItem("diary_settings") || "[]");
+        const notificationsEnabled = settings.find((s: { id: string }) => s.id === "notifications")?.value ?? true;
+        port.postMessage({ tasks, reminders, notificationsEnabled });
+      }
+    });
+
+    // Запускаем проверку в SW
+    reg.active?.postMessage({ type: "SCHEDULE_CHECKS" });
+    reg.installing?.addEventListener("statechange", function () {
+      if (this.state === "activated") this.postMessage({ type: "SCHEDULE_CHECKS" });
+    });
+  }).catch(() => {});
+}
+
+/* ── Главный хук ── */
 export function useTaskNotifications() {
   const firedRef = useRef<Set<string>>(new Set());
+  const snoozedRef = useRef<Record<string, number>>({});
+  const repeatsRef = useRef<Record<string, ReturnType<typeof setInterval>>>({});
 
   useEffect(() => {
+    registerSW();
+  }, []);
+
+  useEffect(() => {
+    const dismiss = (tag: string) => {
+      firedRef.current.add(tag + "-dismissed");
+      const interval = repeatsRef.current[tag];
+      if (interval) { clearInterval(interval); delete repeatsRef.current[tag]; }
+    };
+
+    const fire = (item: { fireAt: number; tag: string; title: string; body: string }) => {
+      const { tag, title, body } = item;
+      if (firedRef.current.has(tag + "-dismissed")) return;
+      if (firedRef.current.has(tag)) {
+        // уже сработало — проверяем повтор
+        return;
+      }
+
+      firedRef.current.add(tag);
+      sendNotification(title, body, tag, dismiss);
+
+      // Повторять каждые 3 минуты пока не выключат
+      const interval = setInterval(() => {
+        if (firedRef.current.has(tag + "-dismissed")) {
+          clearInterval(interval);
+          delete repeatsRef.current[tag];
+          return;
+        }
+        // Снова проиграть звук + показать уведомление
+        sendNotification(title, body + " (повтор)", tag + "-r-" + Date.now(), dismiss);
+      }, 3 * 60 * 1000);
+
+      repeatsRef.current[tag] = interval;
+    };
+
     const tick = () => {
+      const settings = JSON.parse(localStorage.getItem("diary_settings") || "[]");
+      const notifOn = settings.find((s: { id: string }) => s.id === "notifications")?.value ?? true;
+      if (!notifOn || Notification.permission !== "granted") return;
+
       const now = Date.now();
-      const window_ms = 30_000; // огонь в течение 30 сек от нужного времени
+      const WINDOW = 90_000; // 90 сек
 
-      const rawTasks = localStorage.getItem("diary_tasks");
-      const rawReminders = localStorage.getItem("diary_reminders");
-      const tasks: Task[] = rawTasks ? JSON.parse(rawTasks) : [];
-      const reminders: Reminder[] = rawReminders ? JSON.parse(rawReminders) : [];
+      const tasks: Task[] = JSON.parse(localStorage.getItem("diary_tasks") || "[]");
+      const reminders: Reminder[] = JSON.parse(localStorage.getItem("diary_reminders") || "[]");
 
-      // Задачи
       for (const task of tasks) {
-        const fireTimes = getTaskFireTimes(task);
-        for (const ft of fireTimes) {
-          if (firedRef.current.has(ft.tag)) continue;
-          if (ft.fireAt <= now && now - ft.fireAt < window_ms) {
-            firedRef.current.add(ft.tag);
-            sendNotification("Ежедневник", ft.label, ft.tag);
-          }
+        for (const ft of getTaskFireTimes(task)) {
+          if (ft.fireAt <= now && now - ft.fireAt < WINDOW) fire(ft);
         }
       }
 
-      // Напоминания
       for (const r of reminders) {
         const ft = getReminderFireTime(r);
-        if (!ft) continue;
-        const dayTag = ft.tag + "-" + new Date().toDateString();
-        if (firedRef.current.has(dayTag)) continue;
-        if (ft.fireAt <= now && now - ft.fireAt < window_ms) {
-          firedRef.current.add(dayTag);
-          sendNotification("Напоминание", r.title + " · " + r.time, dayTag);
-        }
+        if (ft && ft.fireAt <= now && now - ft.fireAt < WINDOW) fire(ft);
       }
     };
 
     tick();
     const interval = setInterval(tick, 15_000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      Object.values(repeatsRef.current).forEach(clearInterval);
+    };
   }, []);
 }

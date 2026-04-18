@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ProfileModal from "@/components/ProfileModal";
@@ -33,10 +33,29 @@ const SettingsPage = () => {
   const [toggles, setToggles] = useLocalStorage("diary_settings", initialToggles);
   const [profile, setProfile] = useLocalStorage<Profile>("diary_profile", initialProfile);
   const [editOpen, setEditOpen] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
   const { canInstall, isInstalled, install } = usePWAInstall();
+
+  useEffect(() => {
+    if (!("Notification" in window)) { setNotifPermission("unsupported"); return; }
+    setNotifPermission(Notification.permission);
+  }, []);
+
+  const notifEnabled = toggles.find((t) => t.id === "notifications")?.value ?? true;
 
   const toggle = (id: string) => {
     setToggles((prev) => prev.map((t) => t.id === id ? { ...t, value: !t.value } : t));
+  };
+
+  const requestPermission = async () => {
+    const result = await Notification.requestPermission();
+    setNotifPermission(result);
+    if (result === "granted") {
+      toggle("notifications");
+      setTimeout(() => {
+        new Notification("Ежедневник", { body: "Уведомления включены!", icon: "/favicon.svg" });
+      }, 400);
+    }
   };
 
   return (
@@ -61,24 +80,57 @@ const SettingsPage = () => {
       <div className="section">
         <h2 className="section-title">Предпочтения</h2>
         <div className="settings-list">
-          {toggles.map((t) => (
-            <div key={t.id} className="settings-row">
-              <div className="settings-icon-wrap">
-                <Icon name={t.icon} size={16} />
+          {toggles.map((t) => {
+            const isNotif = t.id === "notifications";
+            const blocked = isNotif && notifPermission === "denied";
+            const needsRequest = isNotif && notifPermission === "default";
+            return (
+              <div key={t.id} className="settings-row">
+                <div className={`settings-icon-wrap ${isNotif && t.value && notifPermission === "granted" ? "settings-icon-wrap--green" : ""}`}>
+                  <Icon name={t.icon} size={16} />
+                </div>
+                <div className="settings-info">
+                  <span className="settings-label">{t.label}</span>
+                  <span className="settings-desc">
+                    {blocked
+                      ? "Заблокировано в настройках браузера"
+                      : needsRequest
+                      ? "Нажмите для запроса разрешения"
+                      : t.description}
+                  </span>
+                </div>
+                {blocked ? (
+                  <span className="settings-badge settings-badge--red">Блок</span>
+                ) : needsRequest ? (
+                  <button className="settings-request-btn" onClick={requestPermission}>
+                    Разрешить
+                  </button>
+                ) : (
+                  <button
+                    className={`toggle-switch ${t.value ? "toggle-switch--on" : ""}`}
+                    onClick={() => toggle(t.id)}
+                  >
+                    <span className="toggle-knob" />
+                  </button>
+                )}
               </div>
-              <div className="settings-info">
-                <span className="settings-label">{t.label}</span>
-                <span className="settings-desc">{t.description}</span>
-              </div>
-              <button
-                className={`toggle-switch ${t.value ? "toggle-switch--on" : ""}`}
-                onClick={() => toggle(t.id)}
-              >
-                <span className="toggle-knob" />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
+
+        {/* Статус уведомлений */}
+        {notifPermission === "granted" && notifEnabled && (
+          <div className="notif-status-card">
+            <Icon name="BellRing" size={16} />
+            <span>Уведомления активны — придут даже при заблокированном экране</span>
+          </div>
+        )}
+        {notifPermission === "granted" && !notifEnabled && (
+          <div className="notif-status-card notif-status-card--off">
+            <Icon name="BellOff" size={16} />
+            <span>Уведомления выключены в настройках</span>
+          </div>
+        )}
       </div>
 
       {/* Install */}
