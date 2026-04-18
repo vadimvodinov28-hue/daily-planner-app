@@ -5,7 +5,6 @@ import TaskModal, { type NewTask } from "@/components/TaskModal";
 
 const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 const dayLabels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-const dayLabelsShort = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
 interface Task {
   id: number;
@@ -26,7 +25,6 @@ const priorityColors: Record<string, string> = {
   low: "#10b981",
 };
 
-// Выходные: Сб=5, Вс=6 (0-indexed в неделе Пн..Вс)
 const isWeekend = (di: number) => di === 5 || di === 6;
 
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
@@ -45,7 +43,6 @@ const CalendarPage = () => {
   const [selected, setSelected] = useState(now.getDate());
   const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set());
   const [allExpanded, setAllExpanded] = useState(false);
-  const [dayListExpanded, setDayListExpanded] = useState(false);
   const [tasks, setTasks] = useLocalStorage<Task[]>("diary_tasks", []);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalDate, setModalDate] = useState(toIso(now.getFullYear(), now.getMonth(), now.getDate()));
@@ -67,7 +64,9 @@ const CalendarPage = () => {
   const tasksByDate = (iso: string) => tasks.filter((t) => t.date === iso);
 
   const openAddForDate = (iso: string) => {
+    setEditingId(null);
     setModalDate(iso);
+    document.querySelector(".main-content")?.scrollTo({ top: 0 });
     setModalOpen(true);
   };
 
@@ -84,8 +83,10 @@ const CalendarPage = () => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const openEdit = (id: number) => {
-    setEditingId(id);
+  const openEdit = (task: Task) => {
+    setEditingId(task.id);
+    setModalDate(task.date);
+    document.querySelector(".main-content")?.scrollTo({ top: 0 });
     setModalOpen(true);
   };
 
@@ -138,87 +139,84 @@ const CalendarPage = () => {
 
   return (
     <div className="page-container animate-fade-in">
+      {/* Header */}
       <div className="page-header">
         <h1 className="page-title">Календарь</h1>
-        <button className="cal-collapse-btn" onClick={toggleAllWeeks}>
-          <Icon name={allExpanded ? "ChevronsUp" : "ChevronsDown"} size={16} />
+        <button className="cal-toggle-all-btn" onClick={toggleAllWeeks}>
+          <Icon name={allExpanded ? "ChevronsUp" : "ChevronsDown"} size={15} />
           {allExpanded ? "Свернуть" : "Все задачи"}
         </button>
       </div>
 
       {/* Month navigation */}
-      <div className="month-nav">
-        <button className="month-arrow" onClick={prevMonth}>
-          <Icon name="ChevronLeft" size={18} />
+      <div className="cal-month-nav">
+        <button className="cal-month-arrow" onClick={prevMonth}>
+          <Icon name="ChevronLeft" size={20} />
         </button>
-        <span className="month-label">{monthNames[month]} {year}</span>
-        <button className="month-arrow" onClick={nextMonth}>
-          <Icon name="ChevronRight" size={18} />
+        <span className="cal-month-label">{monthNames[month]} {year}</span>
+        <button className="cal-month-arrow" onClick={nextMonth}>
+          <Icon name="ChevronRight" size={20} />
         </button>
       </div>
 
-      {/* Day labels — Пн..Пт обычные, Сб/Вс зелёные */}
-      <div className="cal-grid-header">
+      {/* Day-of-week header */}
+      <div className="cal-dow-header">
         {dayLabels.map((d, i) => (
-          <span key={d} className={`cal-day-label ${isWeekend(i) ? "cal-day-label--weekend" : ""}`}>{d}</span>
+          <span key={d} className={`cal-dow-cell${isWeekend(i) ? " cal-dow-cell--weekend" : ""}`}>{d}</span>
         ))}
       </div>
 
       {/* Weeks */}
-      <div className="cal-weeks">
+      <div className="cal-weeks-list">
         {weeks.map((week, wi) => {
           const isExpanded = expandedWeeks.has(weekKey(wi));
-          const weekHasTasks = week.some((day) => {
-            if (!day) return false;
-            return tasksByDate(toIso(year, month, day)).length > 0;
-          });
+          const weekHasTasks = week.some((day) => day && tasksByDate(toIso(year, month, day)).length > 0);
 
           return (
-            <div key={wi} className="cal-week-block">
-              {/* Week row */}
-              <div className="cal-week-row">
-                <div className="cal-week-days">
+            <div key={wi} className="cal-week-block2">
+              {/* Week cells row */}
+              <div className="cal-week-row2">
+                <div className="cal-week-cells">
                   {week.map((day, di) => {
-                    if (!day) return <div key={di} className="cal-cell cal-cell--empty" />;
+                    if (!day) return <div key={di} className="cal-cell2 cal-cell2--empty" />;
                     const iso = toIso(year, month, day);
                     const isToday = day === now.getDate() && month === now.getMonth() && year === now.getFullYear();
-                    const isSelected = day === selected;
+                    const isSelected = day === selected && !isExpanded;
                     const dayTasks = tasksByDate(iso);
                     const weekend = isWeekend(di);
                     return (
                       <button
                         key={di}
-                        className={`cal-cell ${isSelected ? "cal-cell--selected" : ""} ${isToday && !isSelected ? "cal-cell--today" : ""} ${weekend && !isSelected ? "cal-cell--weekend" : ""}`}
-                        onClick={() => { setSelected(day); setDayListExpanded(false); }}
+                        className={[
+                          "cal-cell2",
+                          isSelected ? "cal-cell2--selected" : "",
+                          isToday && !isSelected ? "cal-cell2--today" : "",
+                          weekend && !isSelected ? "cal-cell2--weekend" : "",
+                        ].join(" ")}
+                        onClick={() => setSelected(day)}
                       >
-                        <span className="cal-cell-num">{day}</span>
-                        {dayTasks.length > 0 && <span className="cal-dot" />}
+                        <span className="cal-cell2-day">{dayLabels[di]}</span>
+                        <span className="cal-cell2-num">{day}</span>
+                        {dayTasks.length > 0 && (
+                          <span className="cal-cell2-dot" style={{ background: priorityColors[dayTasks[0].priority] }} />
+                        )}
                       </button>
                     );
                   })}
                 </div>
                 <button
-                  className={`cal-week-expand ${isExpanded ? "cal-week-expand--open" : ""}`}
+                  className={`cal-expand-btn${isExpanded ? " cal-expand-btn--open" : ""}`}
                   onClick={() => toggleWeek(wi)}
-                  title={isExpanded ? "Свернуть неделю" : "Развернуть неделю"}
+                  title={isExpanded ? "Свернуть" : "Развернуть"}
                 >
-                  <Icon name="ChevronDown" size={14} />
-                  {weekHasTasks && !isExpanded && <span className="cal-week-dot" />}
+                  <Icon name="ChevronDown" size={13} />
+                  {weekHasTasks && !isExpanded && <span className="cal-expand-dot" />}
                 </button>
               </div>
 
-              {/* Expanded week: task list by day — все задачи раскрыты */}
+              {/* Expanded week detail */}
               {isExpanded && (
-                <div className="cal-week-detail">
-                  <div className="cal-week-detail-header">
-                    <button
-                      className="cal-week-collapse-btn"
-                      onClick={() => toggleWeek(wi)}
-                    >
-                      <Icon name="ChevronUp" size={13} />
-                      Свернуть
-                    </button>
-                  </div>
+                <div className="cal-detail">
                   {week.map((day, di) => {
                     if (!day) return null;
                     const iso = toIso(year, month, day);
@@ -226,49 +224,82 @@ const CalendarPage = () => {
                     const isToday = day === now.getDate() && month === now.getMonth() && year === now.getFullYear();
                     const weekend = isWeekend(di);
                     return (
-                      <div key={di} className={`cal-day-row ${isToday ? "cal-day-row--today" : ""}`}>
-                        <div className={`cal-day-label-full ${weekend ? "cal-day-label-full--weekend" : ""}`}>
-                          <span className="cal-day-name">{dayLabelsShort[di]}</span>
-                          <span className={`cal-day-num ${isToday ? "cal-day-num--today" : ""}`}>{day}</span>
-                        </div>
-                        <div className="cal-day-tasks">
-                          {dayTasks.map((t) => (
-                            <div
-                              key={t.id}
-                              className={`cal-task-chip ${t.done ? "cal-task-chip--done" : ""}`}
-                            >
-                              {/* Галочка СЛЕВА */}
-                              <button
-                                className="cal-task-chip-done"
-                                onClick={(e) => { e.stopPropagation(); toggleTask(t.id); }}
-                                aria-label="Отметить"
-                              >
-                                {t.done
-                                  ? <Icon name="CheckCircle2" size={14} />
-                                  : <Icon name="Circle" size={14} />
-                                }
-                              </button>
-                              <span
-                                className="cal-task-dot"
-                                style={{ background: priorityColors[t.priority] }}
-                              />
-                              <span className="cal-task-text" onClick={() => openEdit(t.id)}>{t.text}</span>
-                              {t.time && (
-                                <span className="cal-task-time">{t.time}</span>
-                              )}
-                            </div>
-                          ))}
+                      <div key={di} className={`cal-detail-day${isToday ? " cal-detail-day--today" : ""}`}>
+                        {/* Day label */}
+                        <div className={`cal-detail-dayhead${weekend ? " cal-detail-dayhead--weekend" : ""}`}>
+                          <span className="cal-detail-dow">{dayLabels[di]}</span>
+                          <span className={`cal-detail-num${isToday ? " cal-detail-num--today" : ""}`}>{day}</span>
                           <button
-                            className="cal-day-add-btn"
+                            className="cal-detail-add"
                             onClick={() => openAddForDate(iso)}
+                            title="Добавить задачу"
                           >
                             <Icon name="Plus" size={12} />
-                            <span>Добавить</span>
                           </button>
+                        </div>
+
+                        {/* Tasks */}
+                        <div className="cal-detail-tasks">
+                          {dayTasks.length === 0 ? (
+                            <button className="cal-detail-empty" onClick={() => openAddForDate(iso)}>
+                              <Icon name="Plus" size={11} />
+                              Добавить задачу
+                            </button>
+                          ) : (
+                            <>
+                              {dayTasks.map((t) => (
+                                <div
+                                  key={t.id}
+                                  className={`cal-task-row${t.done ? " cal-task-row--done" : ""}`}
+                                  style={{ borderLeftColor: priorityColors[t.priority] }}
+                                >
+                                  {/* Галочка СЛЕВА */}
+                                  <button
+                                    className={`cal-task-check${t.done ? " cal-task-check--done" : ""}`}
+                                    onClick={() => toggleTask(t.id)}
+                                    aria-label="Отметить"
+                                  >
+                                    {t.done
+                                      ? <Icon name="CheckCircle2" size={15} />
+                                      : <Icon name="Circle" size={15} />
+                                    }
+                                  </button>
+                                  {/* Текст задачи */}
+                                  <div className="cal-task-body">
+                                    <span className="cal-task-text">{t.text}</span>
+                                    {t.time && (
+                                      <span className="cal-task-time">
+                                        <Icon name="Clock" size={10} />
+                                        {t.time}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {/* Редактировать */}
+                                  <button
+                                    className="cal-task-edit"
+                                    onClick={() => openEdit(t)}
+                                    aria-label="Редактировать"
+                                  >
+                                    <Icon name="Pencil" size={12} />
+                                  </button>
+                                </div>
+                              ))}
+                              <button className="cal-detail-add-more" onClick={() => openAddForDate(iso)}>
+                                <Icon name="Plus" size={11} />
+                                Добавить
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
                   })}
+
+                  {/* Collapse button */}
+                  <button className="cal-detail-collapse" onClick={() => toggleWeek(wi)}>
+                    <Icon name="ChevronUp" size={13} />
+                    Свернуть
+                  </button>
                 </div>
               )}
             </div>
@@ -277,84 +308,65 @@ const CalendarPage = () => {
       </div>
 
       {/* Selected day tasks */}
-      <div className="section" style={{ marginTop: 8 }}>
-        <div className="section-header">
-          <h2 className="section-title">
-            {selected} {monthNames[month]}
-          </h2>
-          <button
-            className="cal-add-day-btn"
-            onClick={() => openAddForDate(selectedIso)}
-          >
-            <Icon name="Plus" size={16} />
-            Задача
+      <div className="cal-selected-day">
+        <div className="cal-selected-day-header">
+          <span className="cal-selected-day-title">
+            {dayLabels[(new Date(year, month, selected).getDay() + 6) % 7]}, {selected} {monthNames[month].toLowerCase()}
+          </span>
+          <button className="cal-selected-add-btn" onClick={() => openAddForDate(selectedIso)}>
+            <Icon name="Plus" size={14} />
+            Добавить
           </button>
         </div>
 
         {selectedTasks.length === 0 ? (
-          <div className="cal-empty-day" onClick={() => openAddForDate(selectedIso)}>
-            <Icon name="Plus" size={20} />
-            <span>Добавить задачу на этот день</span>
-          </div>
+          <button className="cal-selected-empty" onClick={() => openAddForDate(selectedIso)}>
+            <Icon name="CalendarPlus" size={22} />
+            <span>Нет задач — нажми чтобы добавить</span>
+          </button>
         ) : (
-          <div className="cal-day-task-list">
-            {(dayListExpanded ? selectedTasks : selectedTasks.slice(0, 3)).map((t) => (
-              <div key={t.id} className={`cal-day-task-item ${t.done ? "cal-day-task-item--done" : ""}`} style={{ borderLeftColor: priorityColors[t.priority], borderLeftWidth: 3 }}>
+          <div className="cal-selected-tasks">
+            {selectedTasks.map((t) => (
+              <div
+                key={t.id}
+                className={`cal-task-row${t.done ? " cal-task-row--done" : ""}`}
+                style={{ borderLeftColor: priorityColors[t.priority] }}
+              >
                 <button
-                  className={`task-check ${t.done ? "task-check--done" : ""}`}
-                  onClick={(e) => { e.stopPropagation(); toggleTask(t.id); }}
+                  className={`cal-task-check${t.done ? " cal-task-check--done" : ""}`}
+                  onClick={() => toggleTask(t.id)}
                   aria-label="Отметить"
                 >
-                  {t.done && <Icon name="Check" size={12} />}
+                  {t.done
+                    ? <Icon name="CheckCircle2" size={15} />
+                    : <Icon name="Circle" size={15} />
+                  }
                 </button>
-                <span
-                  className="home-task-priority"
-                  style={{ background: priorityColors[t.priority] }}
-                />
-                <div className="task-info" onClick={() => openEdit(t.id)}>
-                  <span className="task-text">{t.text}</span>
+                <div className="cal-task-body">
+                  <span className="cal-task-text">{t.text}</span>
                   {t.time && (
-                    <span className="task-time-badge">
+                    <span className="cal-task-time">
                       <Icon name="Clock" size={10} />
                       {t.time}
                     </span>
                   )}
                 </div>
                 <button
-                  className="task-action-btn"
-                  onClick={(e) => { e.stopPropagation(); openEdit(t.id); }}
-                  aria-label="Изменить"
+                  className="cal-task-edit"
+                  onClick={() => openEdit(t)}
+                  aria-label="Редактировать"
                 >
-                  <Icon name="Pencil" size={13} />
+                  <Icon name="Pencil" size={12} />
                 </button>
                 <button
-                  className="task-action-btn task-action-btn--danger"
-                  onClick={(e) => { e.stopPropagation(); if (confirm("Удалить задачу?")) removeTask(t.id); }}
+                  className="cal-task-delete"
+                  onClick={() => { if (confirm("Удалить задачу?")) removeTask(t.id); }}
                   aria-label="Удалить"
                 >
-                  <Icon name="Trash2" size={13} />
+                  <Icon name="Trash2" size={12} />
                 </button>
               </div>
             ))}
-            {selectedTasks.length > 3 && (
-              <button
-                className="cal-day-expand-btn"
-                onClick={() => setDayListExpanded((v) => !v)}
-              >
-                {dayListExpanded ? (
-                  <><Icon name="ChevronUp" size={13} />Свернуть</>
-                ) : (
-                  <><Icon name="ChevronDown" size={13} />Ещё {selectedTasks.length - 3} задач</>
-                )}
-              </button>
-            )}
-            <button
-              className="home-task-add"
-              onClick={() => openAddForDate(selectedIso)}
-            >
-              <Icon name="Plus" size={13} />
-              Добавить
-            </button>
           </div>
         )}
       </div>
@@ -366,8 +378,8 @@ const CalendarPage = () => {
         defaultDate={modalDate}
         initial={editingTask}
         editMode={!!editingTask}
-        hideDatePicker={!editingTask}
         onDelete={editingTask ? () => { removeTask(editingTask.id); closeModal(); } : undefined}
+        hideDatePicker={false}
       />
     </div>
   );
