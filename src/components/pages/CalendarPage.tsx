@@ -348,6 +348,13 @@ const CalendarPage = () => {
                 )}
               </button>
             )}
+            <button
+              className="home-task-add"
+              onClick={() => openAddForDate(selectedIso)}
+            >
+              <Icon name="Plus" size={13} />
+              Добавить
+            </button>
           </div>
         )}
       </div>
