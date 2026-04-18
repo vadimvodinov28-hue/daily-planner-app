@@ -21,14 +21,16 @@ ADVANCE_MINUTES = {
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
 
-def get_fire_times(task: dict):
-    """Возвращает список {fire_at, tag, title, body} для задачи."""
+def get_fire_times(task: dict, tz_offset_min: int = 0):
+    """Возвращает список {fire_at, tag, title, body} для задачи. tz_offset_min — смещение пользователя от UTC в минутах (напр. +180 для МСК)."""
     if task.get("done") or not task.get("date") or not task.get("time"):
         return []
     results = []
     try:
         base_str = task["date"] + "T" + task["time"] + ":00"
-        base = datetime.fromisoformat(base_str).replace(tzinfo=timezone.utc)
+        # Парсим как local time, затем конвертируем в UTC вычитая смещение
+        local_dt = datetime.fromisoformat(base_str)
+        base = local_dt - timedelta(minutes=tz_offset_min)  # naive UTC
     except Exception:
         return []
 
@@ -70,7 +72,7 @@ def get_reminder_fire(reminder: dict):
         return None
     try:
         h, m = map(int, reminder["time"].split(":"))
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         base = now.replace(hour=h, minute=m, second=0, microsecond=0)
         if base < now:
             base += timedelta(days=1)
@@ -108,16 +110,20 @@ def handler(event: dict, context) -> dict:
     cur.execute(f"SELECT user_key, subscription, tasks, reminders FROM {SCHEMA}.push_subscriptions")
     rows = cur.fetchall()
 
-    now = datetime.now(timezone.utc)
+    # Используем naive datetime (без timezone) — время задач хранится без TZ
+    now = datetime.utcnow()
     window = timedelta(seconds=90)
     sent = 0
     errors = 0
+    print(f"[push] scheduler tick at {now.isoformat()}Z, subscriptions={len(rows)}")
 
     for (user_key, subscription, tasks, reminders) in rows:
         all_items = []
+        # tz_offset хранится в подписке (минуты от UTC, например +180 для МСК)
+        tz_offset = subscription.get("tz_offset_min", 0) if isinstance(subscription, dict) else 0
 
         for task in (tasks or []):
-            all_items.extend(get_fire_times(task))
+            all_items.extend(get_fire_times(task, tz_offset))
 
         for reminder in (reminders or []):
             ft = get_reminder_fire(reminder)
@@ -140,6 +146,7 @@ def handler(event: dict, context) -> dict:
                 continue
 
             # Отправляем
+            print(f"[push] firing tag={tag} to user={user_key[:12]}")
             try:
                 send_push(subscription, item["title"], item["body"], tag)
                 cur.execute(
@@ -148,13 +155,18 @@ def handler(event: dict, context) -> dict:
                 )
                 conn.commit()
                 sent += 1
+                print(f"[push] sent ok tag={tag}")
             except WebPushException as e:
+                resp_text = e.response.text if e.response else "no response"
+                status = e.response.status_code if e.response else 0
+                print(f"[push] WebPushException status={status} body={resp_text}")
                 errors += 1
-                # Подписка устарела — удаляем
                 if e.response and e.response.status_code in (404, 410):
+                    print(f"[push] subscription expired, deleting user={user_key[:12]}")
                     cur.execute(f"DELETE FROM {SCHEMA}.push_subscriptions WHERE user_key = %s", (user_key,))
                     conn.commit()
-            except Exception:
+            except Exception as e:
+                print(f"[push] Exception: {type(e).__name__}: {e}")
                 errors += 1
 
     cur.close()

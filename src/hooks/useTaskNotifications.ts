@@ -119,12 +119,13 @@ async function subscribePush(reg: ServiceWorkerRegistration) {
     const tasks: Task[] = JSON.parse(localStorage.getItem("diary_tasks") || "[]");
     const reminders: Reminder[] = JSON.parse(localStorage.getItem("diary_reminders") || "[]");
 
+    const tzOffsetMin = -new Date().getTimezoneOffset();
     await fetch(SUBSCRIBE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         user_key: getUserKey(),
-        subscription: sub.toJSON(),
+        subscription: { ...sub.toJSON(), tz_offset_min: tzOffsetMin },
         tasks,
         reminders,
       }),
