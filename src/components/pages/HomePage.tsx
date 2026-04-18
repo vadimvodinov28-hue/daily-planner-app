@@ -158,6 +158,7 @@ const HomePage = ({ onNavigate }: HomePageProps) => {
               <div
                 key={task.id}
                 className={`home-task-row ${task.done ? "home-task-row--done" : ""}`}
+                style={{ borderLeftColor: priorityColors[task.priority], borderLeftWidth: 3 }}
               >
                 <span
                   className="home-task-priority"

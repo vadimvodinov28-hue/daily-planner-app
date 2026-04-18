@@ -35,6 +35,11 @@ const priorityColors: Record<Priority, string> = {
   medium: "priority--medium",
   low: "priority--low",
 };
+const priorityBg: Record<Priority, string> = {
+  high: "#ef4444",
+  medium: "#f59e0b",
+  low: "#10b981",
+};
 const priorityLabel: Record<Priority, string> = {
   high: "Высокий",
   medium: "Средний",
@@ -178,6 +183,7 @@ const TasksPage = () => {
           >
             <div
               className={`task-row-full ${task.done ? "task-row--done" : ""}`}
+              style={{ borderLeftColor: priorityBg[task.priority], borderLeftWidth: 3 }}
             >
               {sortMode === "manual" && (
                 <div className="task-drag-handle">

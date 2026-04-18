@@ -299,7 +299,7 @@ const CalendarPage = () => {
         ) : (
           <div className="cal-day-task-list">
             {(dayListExpanded ? selectedTasks : selectedTasks.slice(0, 3)).map((t) => (
-              <div key={t.id} className={`cal-day-task-item ${t.done ? "cal-day-task-item--done" : ""}`}>
+              <div key={t.id} className={`cal-day-task-item ${t.done ? "cal-day-task-item--done" : ""}`} style={{ borderLeftColor: priorityColors[t.priority], borderLeftWidth: 3 }}>
                 <button
                   className={`task-check ${t.done ? "task-check--done" : ""}`}
                   onClick={(e) => { e.stopPropagation(); toggleTask(t.id); }}
