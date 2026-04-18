@@ -2156,6 +2156,45 @@
 }
 
 /* ========================
+   EXPAND BUTTONS (collapsible task lists)
+======================== */
+
+.home-task-expand,
+.tasks-expand-btn,
+.cal-event-expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  padding: 8px;
+  background: hsl(var(--muted));
+  border: 1px dashed hsl(var(--border));
+  border-radius: 10px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: "Golos Text", sans-serif;
+  transition: all 0.15s;
+  margin-top: 4px;
+}
+
+.home-task-expand:hover,
+.tasks-expand-btn:hover,
+.cal-event-expand:hover {
+  background: hsl(var(--border));
+  color: hsl(var(--foreground));
+  border-style: solid;
+}
+
+.tasks-expand-btn {
+  padding: 10px;
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+/* ========================
    ANIMATIONS
 ======================== */
 

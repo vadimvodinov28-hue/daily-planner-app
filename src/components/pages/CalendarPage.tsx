@@ -42,6 +42,7 @@ const CalendarPage = () => {
   const [tasks, setTasks] = useLocalStorage<Task[]>("diary_tasks", []);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalDate, setModalDate] = useState(toIso(now.getFullYear(), now.getMonth(), now.getDate()));
+  const [dayExpanded, setDayExpanded] = useState(false);
 
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
@@ -151,7 +152,7 @@ const CalendarPage = () => {
                       <button
                         key={di}
                         className={`cal-cell ${isSelected ? "cal-cell--selected" : ""} ${isToday && !isSelected ? "cal-cell--today" : ""}`}
-                        onClick={() => setSelected(day)}
+                        onClick={() => { setSelected(day); setDayExpanded(false); }}
                       >
                         {day}
                         {dayTasks.length > 0 && <span className="cal-dot" />}
@@ -238,7 +239,7 @@ const CalendarPage = () => {
           </div>
         ) : (
           <div className="event-list">
-            {selectedTasks.map((t) => (
+            {(dayExpanded ? selectedTasks : selectedTasks.slice(0, 1)).map((t) => (
               <div
                 key={t.id}
                 className={`cal-event-row ${t.done ? "cal-event-row--done" : ""}`}
@@ -254,6 +255,15 @@ const CalendarPage = () => {
                 </div>
               </div>
             ))}
+            {selectedTasks.length > 1 && (
+              <button className="cal-event-expand" onClick={() => setDayExpanded((e) => !e)}>
+                {dayExpanded ? (
+                  <><Icon name="ChevronUp" size={13} />Свернуть</>
+                ) : (
+                  <><Icon name="ChevronDown" size={13} />Ещё {selectedTasks.length - 1} {selectedTasks.length - 1 === 1 ? "задача" : selectedTasks.length - 1 < 5 ? "задачи" : "задач"}</>
+                )}
+              </button>
+            )}
             <button
               className="cal-add-inline-btn"
               onClick={() => openAddForDate(selectedIso)}

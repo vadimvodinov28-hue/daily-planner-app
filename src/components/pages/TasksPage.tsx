@@ -53,6 +53,7 @@ const TasksPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const dragNode = useRef<HTMLDivElement | null>(null);
 
   const toggle = (id: number) => {
@@ -147,7 +148,7 @@ const TasksPage = () => {
         {(["all", "active", "done"] as Filter[]).map((f) => (
           <button
             key={f}
-            onClick={() => setFilter(f)}
+            onClick={() => { setFilter(f); setExpanded(false); }}
             className={`filter-tab ${filter === f ? "filter-tab--active" : ""}`}
           >
             {f === "all" ? "Все" : f === "active" ? "Активные" : "Выполненные"}
@@ -156,7 +157,7 @@ const TasksPage = () => {
       </div>
 
       <div className="task-list">
-        {sorted.map((task) => (
+        {(expanded ? sorted : sorted.slice(0, 1)).map((task) => (
           <div
             key={task.id}
             className={`task-drag-wrap ${dragOverId === task.id ? "task-drag-wrap--over" : ""}`}
@@ -205,6 +206,15 @@ const TasksPage = () => {
             </div>
           </div>
         ))}
+        {sorted.length > 1 && (
+          <button className="tasks-expand-btn" onClick={() => setExpanded((e) => !e)}>
+            {expanded ? (
+              <><Icon name="ChevronUp" size={14} />Свернуть</>
+            ) : (
+              <><Icon name="ChevronDown" size={14} />Ещё {sorted.length - 1} {sorted.length - 1 === 1 ? "задача" : sorted.length - 1 < 5 ? "задачи" : "задач"}</>
+            )}
+          </button>
+        )}
         {sorted.length === 0 && (
           <div className="empty-state">
             <Icon name="CheckCircle" size={32} />
