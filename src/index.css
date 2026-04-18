@@ -2129,8 +2129,9 @@
   align-items: flex-end;
   justify-content: center;
   animation: overlay-in 0.2s ease forwards;
-  /* Когда открыта клавиатура — шторка не уезжает за экран */
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Сам оверлей скроллится — чтобы можно было скроллить к верху */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 @keyframes overlay-in {
@@ -2147,12 +2148,13 @@
   max-width: 430px;
   background: hsl(var(--background));
   border-radius: 24px 24px 0 0;
-  padding: 12px 20px 36px;
+  padding: 12px 20px calc(36px + env(safe-area-inset-bottom, 0px));
   animation: sheet-in 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
-  max-height: 92dvh;
-  overflow-y: scroll;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  /* Растягивается по контенту — нет max-height, скролл на overlay */
+  min-height: 60dvh;
+  position: relative;
+  margin-top: auto;
+  flex-shrink: 0;
 }
 
 @keyframes sheet-in {
