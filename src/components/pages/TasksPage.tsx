@@ -158,9 +158,7 @@ const TasksPage = () => {
             <span>{sortMode === "priority" ? "По важности" : "Вручную"}</span>
           </button>
           <span className="badge-count">{doneCount}/{tasks.length}</span>
-          <button className="icon-btn" onClick={openModal}>
-            <Icon name="Plus" size={20} />
-          </button>
+
         </div>
       </div>
 

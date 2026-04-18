@@ -72,11 +72,11 @@ const TaskModal = ({ open, onClose, onSave, defaultDate, initial, editMode, onDe
     };
   }, [open, defaultDate, initial]);
 
-  // Сбрасываем скролл сразу при монтировании sheet (он монтируется заново при каждом open=true)
   const sheetCallbackRef = (node: HTMLDivElement | null) => {
     if (node) {
       node.scrollTop = 0;
       (sheetRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      setTimeout(() => { node.scrollTop = 0; }, 10);
     }
   };
 
