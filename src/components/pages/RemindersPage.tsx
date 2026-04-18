@@ -104,6 +104,13 @@ const RemindersPage = () => {
             >
               <span className="toggle-knob" />
             </button>
+            <button
+              className="reminder-delete-btn"
+              onClick={(e) => { e.stopPropagation(); remove(r.id); }}
+              aria-label="Удалить"
+            >
+              <Icon name="Trash2" size={15} />
+            </button>
           </SwipeRow>
         ))}
       </div>

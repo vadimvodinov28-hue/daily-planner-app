@@ -64,8 +64,22 @@ const TaskModal = ({ open, onClose, onSave, defaultDate, initial, editMode, onDe
       setAdvance(initial?.advance ?? "none");
       setAdvanceTime(initial?.advanceTime ?? "");
       setMelody((initial?.melody as MelodyId) ?? "classic");
-      // useLayoutEffect ниже сбросит скролл до отрисовки
+
+      // Фиксируем страницу чтобы не было скролла под модалкой
+      const main = document.querySelector(".main-content") as HTMLElement | null;
+      if (main) {
+        main.style.overflow = "hidden";
+      }
+    } else {
+      const main = document.querySelector(".main-content") as HTMLElement | null;
+      if (main) {
+        main.style.overflow = "";
+      }
     }
+    return () => {
+      const main = document.querySelector(".main-content") as HTMLElement | null;
+      if (main) main.style.overflow = "";
+    };
   }, [open, defaultDate, initial]);
 
   // Сбрасываем скролл сразу при монтировании sheet (он монтируется заново при каждом open=true)
