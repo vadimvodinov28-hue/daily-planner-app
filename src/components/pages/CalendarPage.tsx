@@ -366,6 +366,7 @@ const CalendarPage = () => {
         defaultDate={modalDate}
         initial={editingTask}
         editMode={!!editingTask}
+        hideDatePicker={!editingTask}
         onDelete={editingTask ? () => { removeTask(editingTask.id); closeModal(); } : undefined}
       />
     </div>

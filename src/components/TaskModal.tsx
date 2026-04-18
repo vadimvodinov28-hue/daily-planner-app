@@ -23,6 +23,7 @@ interface Props {
   initial?: Partial<NewTask>;
   editMode?: boolean;
   onDelete?: () => void;
+  hideDatePicker?: boolean;
 }
 
 const categories = ["Работа", "Личное", "Развитие", "Здоровье", "Общее"];
@@ -42,7 +43,7 @@ const advanceOptions = [
   { value: "custom", label: "Своё время" },
 ];
 
-const TaskModal = ({ open, onClose, onSave, defaultDate, initial, editMode, onDelete }: Props) => {
+const TaskModal = ({ open, onClose, onSave, defaultDate, initial, editMode, onDelete, hideDatePicker }: Props) => {
   const [text, setText] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
   const [category, setCategory] = useState("Работа");
@@ -106,16 +107,18 @@ const TaskModal = ({ open, onClose, onSave, defaultDate, initial, editMode, onDe
         </div>
 
         {/* Date + Time row */}
-        <div className="modal-row-2">
-          <div className="modal-field">
-            <label className="modal-label">Дата</label>
-            <input
-              type="date"
-              className="modal-input"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
+        <div className={hideDatePicker ? "" : "modal-row-2"}>
+          {!hideDatePicker && (
+            <div className="modal-field">
+              <label className="modal-label">Дата</label>
+              <input
+                type="date"
+                className="modal-input"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+          )}
           <div className="modal-field">
             <label className="modal-label">
               <Icon name="Clock" size={13} />
