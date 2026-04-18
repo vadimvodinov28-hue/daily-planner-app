@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
+import { MELODY_OPTIONS, playMelody, type MelodyId } from "@/utils/melodies";
 
 type Priority = "high" | "medium" | "low";
 
@@ -11,6 +12,7 @@ export interface NewTask {
   time: string;
   advance: string;
   advanceTime: string;
+  melody: MelodyId;
 }
 
 interface Props {
@@ -18,6 +20,9 @@ interface Props {
   onClose: () => void;
   onSave: (task: NewTask) => void;
   defaultDate?: string;
+  initial?: Partial<NewTask>;
+  editMode?: boolean;
+  onDelete?: () => void;
 }
 
 const categories = ["Работа", "Личное", "Развитие", "Здоровье", "Общее"];
@@ -37,7 +42,7 @@ const advanceOptions = [
   { value: "custom", label: "Своё время" },
 ];
 
-const TaskModal = ({ open, onClose, onSave, defaultDate }: Props) => {
+const TaskModal = ({ open, onClose, onSave, defaultDate, initial, editMode, onDelete }: Props) => {
   const [text, setText] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
   const [category, setCategory] = useState("Работа");
@@ -45,23 +50,32 @@ const TaskModal = ({ open, onClose, onSave, defaultDate }: Props) => {
   const [time, setTime] = useState("");
   const [advance, setAdvance] = useState("none");
   const [advanceTime, setAdvanceTime] = useState("");
+  const [melody, setMelody] = useState<MelodyId>("classic");
 
   useEffect(() => {
     if (open) {
-      setText("");
-      setPriority("medium");
-      setCategory("Работа");
-      setDate(defaultDate ?? new Date().toISOString().split("T")[0]);
-      setTime("");
-      setAdvance("none");
-      setAdvanceTime("");
+      setText(initial?.text ?? "");
+      setPriority((initial?.priority as Priority) ?? "medium");
+      setCategory(initial?.category ?? "Работа");
+      setDate(initial?.date ?? defaultDate ?? new Date().toISOString().split("T")[0]);
+      setTime(initial?.time ?? "");
+      setAdvance(initial?.advance ?? "none");
+      setAdvanceTime(initial?.advanceTime ?? "");
+      setMelody((initial?.melody as MelodyId) ?? "classic");
     }
-  }, [open, defaultDate]);
+  }, [open, defaultDate, initial]);
 
   const handleSave = () => {
     if (!text.trim()) return;
-    onSave({ text: text.trim(), priority, category, date, time, advance, advanceTime });
+    onSave({ text: text.trim(), priority, category, date, time, advance, advanceTime, melody });
     onClose();
+  };
+
+  const handleDelete = () => {
+    if (confirm("Удалить задачу?")) {
+      onDelete?.();
+      onClose();
+    }
   };
 
   if (!open) return null;
@@ -72,7 +86,7 @@ const TaskModal = ({ open, onClose, onSave, defaultDate }: Props) => {
         <div className="modal-handle" />
 
         <div className="modal-header">
-          <h2 className="modal-title">Новая задача</h2>
+          <h2 className="modal-title">{editMode ? "Редактировать задачу" : "Новая задача"}</h2>
           <button className="modal-close" onClick={onClose}>
             <Icon name="X" size={18} />
           </button>
@@ -183,6 +197,30 @@ const TaskModal = ({ open, onClose, onSave, defaultDate }: Props) => {
           </div>
         )}
 
+        {/* Melody picker — только если задано время */}
+        {time && (
+          <div className="modal-field">
+            <label className="modal-label">
+              <Icon name="Music" size={13} />
+              Мелодия уведомления
+            </label>
+            <div className="chip-row chip-row--wrap">
+              {MELODY_OPTIONS.map((m) => (
+                <button
+                  key={m.id}
+                  className={`cat-chip melody-chip ${melody === m.id ? "cat-chip--active" : ""}`}
+                  onClick={() => { setMelody(m.id); playMelody(m.id, false); }}
+                  title="Нажми — прослушать"
+                >
+                  <Icon name={m.icon} size={12} />
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <span className="advance-custom-hint">Нажми на мелодию — прослушать</span>
+          </div>
+        )}
+
         {!time && (
           <div className="modal-hint-notif">
             <Icon name="BellOff" size={13} />
@@ -191,8 +229,15 @@ const TaskModal = ({ open, onClose, onSave, defaultDate }: Props) => {
         )}
 
         <button className="modal-save-btn" onClick={handleSave} disabled={!text.trim()}>
-          Добавить задачу
+          {editMode ? "Сохранить изменения" : "Добавить задачу"}
         </button>
+
+        {editMode && onDelete && (
+          <button className="modal-delete-btn" onClick={handleDelete}>
+            <Icon name="Trash2" size={15} />
+            Удалить задачу
+          </button>
+        )}
       </div>
     </div>
   );

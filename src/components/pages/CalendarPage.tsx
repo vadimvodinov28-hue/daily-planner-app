@@ -14,8 +14,10 @@ interface Task {
   priority: "high" | "medium" | "low";
   category: string;
   date: string;
+  time?: string;
   advance?: string;
   advanceTime?: string;
+  melody?: string;
 }
 
 const priorityColors: Record<string, string> = {
@@ -43,6 +45,7 @@ const CalendarPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalDate, setModalDate] = useState(toIso(now.getFullYear(), now.getMonth(), now.getDate()));
   const [dayExpanded, setDayExpanded] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
@@ -64,18 +67,30 @@ const CalendarPage = () => {
     setModalOpen(true);
   };
 
-  const addTask = (newTask: NewTask) => {
-    setTasks((prev) => [...prev, {
-      id: Date.now(),
-      text: newTask.text,
-      done: false,
-      priority: newTask.priority,
-      category: newTask.category,
-      date: modalDate,
-      advance: newTask.advance,
-      advanceTime: newTask.advanceTime,
-    }]);
+  const saveTask = (data: NewTask) => {
+    if (editingId !== null) {
+      setTasks((prev) => prev.map((t) => t.id === editingId ? { ...t, ...data } : t));
+      setEditingId(null);
+    } else {
+      setTasks((prev) => [...prev, { id: Date.now(), done: false, ...data, date: modalDate }]);
+    }
   };
+
+  const removeTask = (id: number) => {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const openEdit = (id: number) => {
+    setEditingId(id);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditingId(null);
+  };
+
+  const editingTask = editingId !== null ? tasks.find((t) => t.id === editingId) : undefined;
 
   const toggleTask = (id: number) => {
     setTasks((prev) => prev.map((t) => t.id === id ? { ...t, done: !t.done } : t));
@@ -189,14 +204,20 @@ const CalendarPage = () => {
                             <div
                               key={t.id}
                               className={`cal-task-chip ${t.done ? "cal-task-chip--done" : ""}`}
-                              onClick={() => toggleTask(t.id)}
+                              onClick={() => openEdit(t.id)}
                             >
                               <span
                                 className="cal-task-dot"
                                 style={{ background: priorityColors[t.priority] }}
                               />
                               <span className="cal-task-text">{t.text}</span>
-                              {t.done && <Icon name="Check" size={11} />}
+                              <button
+                                className="cal-task-chip-done"
+                                onClick={(e) => { e.stopPropagation(); toggleTask(t.id); }}
+                                aria-label="Отметить"
+                              >
+                                {t.done && <Icon name="Check" size={11} />}
+                              </button>
                             </div>
                           ))}
                           <button
@@ -243,16 +264,33 @@ const CalendarPage = () => {
               <div
                 key={t.id}
                 className={`cal-event-row ${t.done ? "cal-event-row--done" : ""}`}
-                onClick={() => toggleTask(t.id)}
               >
                 <div className="cal-event-bar" style={{ background: priorityColors[t.priority] }} />
-                <div className="cal-event-info">
+                <div className="cal-event-info" onClick={() => openEdit(t.id)}>
                   <span className="cal-event-title">{t.text}</span>
                   <span className="cal-event-cat">{t.category}</span>
                 </div>
-                <div className={`cal-event-check ${t.done ? "cal-event-check--done" : ""}`}>
+                <button
+                  className="task-action-btn"
+                  onClick={(e) => { e.stopPropagation(); openEdit(t.id); }}
+                  aria-label="Изменить"
+                >
+                  <Icon name="Pencil" size={13} />
+                </button>
+                <button
+                  className="task-action-btn task-action-btn--danger"
+                  onClick={(e) => { e.stopPropagation(); if (confirm("Удалить задачу?")) removeTask(t.id); }}
+                  aria-label="Удалить"
+                >
+                  <Icon name="Trash2" size={13} />
+                </button>
+                <button
+                  className={`cal-event-check ${t.done ? "cal-event-check--done" : ""}`}
+                  onClick={(e) => { e.stopPropagation(); toggleTask(t.id); }}
+                  aria-label="Отметить"
+                >
                   {t.done && <Icon name="Check" size={11} />}
-                </div>
+                </button>
               </div>
             ))}
             {selectedTasks.length > 1 && (
@@ -277,9 +315,12 @@ const CalendarPage = () => {
 
       <TaskModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSave={addTask}
+        onClose={closeModal}
+        onSave={saveTask}
         defaultDate={modalDate}
+        initial={editingTask}
+        editMode={!!editingTask}
+        onDelete={editingTask ? () => removeTask(editingTask.id) : undefined}
       />
     </div>
   );

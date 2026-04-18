@@ -2,6 +2,12 @@ import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import TaskModal, { type NewTask } from "@/components/TaskModal";
+import type { Page } from "@/pages/Index";
+import type { MelodyId } from "@/utils/melodies";
+
+interface HomePageProps {
+  onNavigate?: (page: Page) => void;
+}
 
 const today = new Date();
 const dayNames = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
@@ -28,6 +34,7 @@ interface Task {
   time?: string;
   advance?: string;
   advanceTime?: string;
+  melody?: MelodyId;
 }
 
 interface Reminder {
@@ -44,10 +51,11 @@ const initialTasks: Task[] = [
   { id: 4, text: "Купить продукты", done: false, priority: "low", category: "Личное", date: getTodayIso() },
 ];
 
-const HomePage = () => {
+const HomePage = ({ onNavigate }: HomePageProps) => {
   const [tasks, setTasks] = useLocalStorage<Task[]>("diary_tasks", initialTasks);
   const [reminders] = useLocalStorage<Reminder[]>("diary_reminders", []);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [profile] = useLocalStorage<{ name: string }>("diary_profile", { name: "Алексей" });
 
@@ -64,19 +72,30 @@ const HomePage = () => {
     setTasks((prev) => prev.map((t) => t.id === id ? { ...t, done: !t.done } : t));
   };
 
-  const addTask = (newTask: NewTask) => {
-    setTasks((prev) => [...prev, {
-      id: Date.now(),
-      text: newTask.text,
-      done: false,
-      priority: newTask.priority,
-      category: newTask.category,
-      date: newTask.date,
-      time: newTask.time,
-      advance: newTask.advance,
-      advanceTime: newTask.advanceTime,
-    }]);
+  const removeTask = (id: number) => {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
   };
+
+  const saveTask = (data: NewTask) => {
+    if (editingId !== null) {
+      setTasks((prev) => prev.map((t) => t.id === editingId ? { ...t, ...data } : t));
+      setEditingId(null);
+    } else {
+      setTasks((prev) => [...prev, { id: Date.now(), done: false, ...data }]);
+    }
+  };
+
+  const openEdit = (id: number) => {
+    setEditingId(id);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditingId(null);
+  };
+
+  const editingTask = editingId !== null ? tasks.find((t) => t.id === editingId) : undefined;
 
   return (
     <div className="page-container animate-fade-in">
@@ -109,21 +128,21 @@ const HomePage = () => {
 
       {/* Quick Stats */}
       <div className="stats-grid">
-        <div className="stat-card">
+        <button className="stat-card" onClick={() => onNavigate?.("tasks")}>
           <Icon name="CheckSquare" size={18} />
           <span className="stat-value">{todayTasks.length}</span>
           <span className="stat-label">Задач сегодня</span>
-        </div>
-        <div className="stat-card">
+        </button>
+        <button className="stat-card" onClick={() => onNavigate?.("tasks")}>
           <Icon name="CheckCircle" size={18} />
           <span className="stat-value">{doneCount}</span>
           <span className="stat-label">Выполнено</span>
-        </div>
-        <div className="stat-card">
+        </button>
+        <button className="stat-card" onClick={() => onNavigate?.("reminders")}>
           <Icon name="Bell" size={18} />
           <span className="stat-value">{activeReminders}</span>
           <span className="stat-label">Напоминаний</span>
-        </div>
+        </button>
       </div>
 
       {/* Tasks today */}
@@ -147,22 +166,39 @@ const HomePage = () => {
               <div
                 key={task.id}
                 className={`home-task-row ${task.done ? "home-task-row--done" : ""}`}
-                onClick={() => toggle(task.id)}
               >
                 <span
                   className="home-task-priority"
                   style={{ background: priorityColors[task.priority] }}
                 />
-                <div className={`home-task-check ${task.done ? "home-task-check--done" : ""}`}>
+                <button
+                  className={`home-task-check ${task.done ? "home-task-check--done" : ""}`}
+                  onClick={(e) => { e.stopPropagation(); toggle(task.id); }}
+                  aria-label="Отметить"
+                >
                   {task.done && <Icon name="Check" size={10} />}
-                </div>
-                <span className="home-task-text">{task.text}</span>
+                </button>
+                <span className="home-task-text" onClick={() => openEdit(task.id)}>{task.text}</span>
                 {task.time && (
-                  <span className="home-task-time">
+                  <span className="home-task-time" onClick={() => openEdit(task.id)}>
                     <Icon name="Clock" size={10} />
                     {task.time}
                   </span>
                 )}
+                <button
+                  className="task-action-btn"
+                  onClick={(e) => { e.stopPropagation(); openEdit(task.id); }}
+                  aria-label="Изменить"
+                >
+                  <Icon name="Pencil" size={13} />
+                </button>
+                <button
+                  className="task-action-btn task-action-btn--danger"
+                  onClick={(e) => { e.stopPropagation(); if (confirm("Удалить задачу?")) removeTask(task.id); }}
+                  aria-label="Удалить"
+                >
+                  <Icon name="Trash2" size={13} />
+                </button>
               </div>
             ))
           )}
@@ -186,9 +222,12 @@ const HomePage = () => {
 
       <TaskModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSave={addTask}
+        onClose={closeModal}
+        onSave={saveTask}
         defaultDate={todayIso}
+        initial={editingTask}
+        editMode={!!editingTask}
+        onDelete={editingTask ? () => removeTask(editingTask.id) : undefined}
       />
     </div>
   );

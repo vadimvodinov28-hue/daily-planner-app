@@ -17,6 +17,7 @@ interface Task {
   time?: string;
   advance?: string;
   advanceTime?: string;
+  melody?: string;
 }
 
 const initialTasks: Task[] = [
@@ -54,6 +55,7 @@ const TasksPage = () => {
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const dragNode = useRef<HTMLDivElement | null>(null);
 
   const toggle = (id: number) => {
@@ -64,19 +66,26 @@ const TasksPage = () => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const addTask = (newTask: NewTask) => {
-    setTasks((prev) => [...prev, {
-      id: Date.now(),
-      text: newTask.text,
-      done: false,
-      priority: newTask.priority,
-      category: newTask.category,
-      date: newTask.date,
-      time: newTask.time,
-      advance: newTask.advance,
-      advanceTime: newTask.advanceTime,
-    }]);
+  const saveTask = (data: NewTask) => {
+    if (editingId !== null) {
+      setTasks((prev) => prev.map((t) => t.id === editingId ? { ...t, ...data } : t));
+      setEditingId(null);
+    } else {
+      setTasks((prev) => [...prev, { id: Date.now(), done: false, ...data }]);
+    }
   };
+
+  const openEdit = (id: number) => {
+    setEditingId(id);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditingId(null);
+  };
+
+  const editingTask = editingId !== null ? tasks.find((t) => t.id === editingId) : undefined;
 
   const handleDragStart = (e: React.DragEvent, id: number) => {
     setDragId(id);
@@ -169,17 +178,20 @@ const TasksPage = () => {
           >
             <div
               className={`task-row-full ${task.done ? "task-row--done" : ""}`}
-              onClick={() => toggle(task.id)}
             >
               {sortMode === "manual" && (
                 <div className="task-drag-handle">
                   <Icon name="GripVertical" size={16} />
                 </div>
               )}
-              <div className={`task-check ${task.done ? "task-check--done" : ""}`}>
+              <button
+                className={`task-check ${task.done ? "task-check--done" : ""}`}
+                onClick={(e) => { e.stopPropagation(); toggle(task.id); }}
+                aria-label="Отметить"
+              >
                 {task.done && <Icon name="Check" size={12} />}
-              </div>
-              <div className="task-info">
+              </button>
+              <div className="task-info" onClick={() => openEdit(task.id)}>
                 <span className="task-text">{task.text}</span>
                 <div className="task-meta-row">
                   <span className={`priority-badge priority-badge--${task.priority}`}>
@@ -202,6 +214,20 @@ const TasksPage = () => {
                   )}
                 </div>
               </div>
+              <button
+                className="task-action-btn"
+                onClick={(e) => { e.stopPropagation(); openEdit(task.id); }}
+                aria-label="Изменить"
+              >
+                <Icon name="Pencil" size={14} />
+              </button>
+              <button
+                className="task-action-btn task-action-btn--danger"
+                onClick={(e) => { e.stopPropagation(); if (confirm("Удалить задачу?")) remove(task.id); }}
+                aria-label="Удалить"
+              >
+                <Icon name="Trash2" size={14} />
+              </button>
               <span className={`priority-dot ${priorityColors[task.priority]}`} />
             </div>
           </div>
@@ -229,8 +255,11 @@ const TasksPage = () => {
 
       <TaskModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSave={addTask}
+        onClose={closeModal}
+        onSave={saveTask}
+        initial={editingTask}
+        editMode={!!editingTask}
+        onDelete={editingTask ? () => remove(editingTask.id) : undefined}
       />
     </div>
   );

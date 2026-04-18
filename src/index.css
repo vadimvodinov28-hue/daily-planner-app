@@ -2155,6 +2155,100 @@
   opacity: 0.88;
 }
 
+.modal-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px;
+  background: transparent;
+  border: 1.5px solid #ef4444;
+  border-radius: 12px;
+  color: #ef4444;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: "Golos Text", sans-serif;
+  transition: all 0.15s;
+}
+
+.modal-delete-btn:hover {
+  background: #ef4444;
+  color: white;
+}
+
+.melody-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.melody-chip:active {
+  transform: scale(0.95);
+}
+
+.task-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.task-action-btn:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.task-action-btn--danger:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.cal-task-chip-done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: 1.5px solid hsl(var(--border));
+  border-radius: 5px;
+  cursor: pointer;
+  margin-left: auto;
+  color: hsl(var(--primary-foreground));
+  transition: all 0.15s;
+}
+
+.cal-task-chip--done .cal-task-chip-done {
+  background: hsl(var(--foreground));
+  border-color: hsl(var(--foreground));
+}
+
+.stat-card {
+  cursor: pointer;
+  font-family: "Golos Text", sans-serif;
+  transition: all 0.15s;
+}
+
+.stat-card:hover {
+  background: hsl(var(--muted)) !important;
+  transform: translateY(-1px);
+}
+
+.stat-card:active {
+  transform: scale(0.97);
+}
+
 /* ========================
    EXPAND BUTTONS (collapsible task lists)
 ======================== */
