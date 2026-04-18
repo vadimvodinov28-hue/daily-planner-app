@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>Виджет · Ежедневник</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, "Golos Text", sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 48px 20px 20px;
+      color: #fff;
+    }
+
+    .clock {
+      font-size: 72px;
+      font-weight: 300;
+      letter-spacing: -2px;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .date-line {
+      font-size: 16px;
+      opacity: 0.7;
+      margin-bottom: 32px;
+      text-transform: capitalize;
+    }
+
+    .widget {
+      width: 100%;
+      max-width: 360px;
+      background: rgba(255,255,255,0.10);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 20px;
+    }
+
+    .widget-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .widget-title {
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0.6;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .widget-count {
+      font-size: 12px;
+      opacity: 0.5;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .task-item:last-child {
+      border-bottom: none;
+    }
+
+    .task-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 5px;
+    }
+
+    .task-text {
+      font-size: 15px;
+      line-height: 1.3;
+      flex: 1;
+    }
+
+    .task-text--done {
+      text-decoration: line-through;
+      opacity: 0.4;
+    }
+
+    .task-check {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      border: 1.5px solid rgba(255,255,255,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 11px;
+    }
+
+    .task-check--done {
+      background: rgba(16,185,129,0.7);
+      border-color: transparent;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 20px 0;
+      opacity: 0.5;
+      font-size: 14px;
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 2px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #34d399);
+      border-radius: 2px;
+      transition: width 0.5s ease;
+    }
+
+    .open-btn {
+      display: block;
+      width: 100%;
+      max-width: 360px;
+      margin-top: 16px;
+      padding: 14px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 14px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+    }
+
+    .open-btn:active {
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="clock" id="clock">--:--</div>
+  <div class="date-line" id="date-line">загрузка...</div>
+
+  <div class="widget">
+    <div class="widget-header">
+      <span class="widget-title">На сегодня</span>
+      <span class="widget-count" id="task-count"></span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div id="task-list"></div>
+  </div>
+
+  <a class="open-btn" href="/">Открыть ежедневник</a>
+
+  <script>
+    const dayNames = ["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
+    const monthNames = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+    const priorityColors = { high: "#ef4444", medium: "#f59e0b", low: "#10b981" };
+
+    function pad(n) { return String(n).padStart(2, "0"); }
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById("clock").textContent = pad(now.getHours()) + ":" + pad(now.getMinutes());
+      document.getElementById("date-line").textContent =
+        dayNames[now.getDay()] + ", " + now.getDate() + " " + monthNames[now.getMonth()];
+    }
+
+    function getTodayIso() {
+      const now = new Date();
+      return now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
+    }
+
+    function renderTasks() {
+      const all = JSON.parse(localStorage.getItem("diary_tasks") || "[]");
+      const today = getTodayIso();
+      const tasks = all.filter(t => t.date === today);
+      const done = tasks.filter(t => t.done).length;
+      const pct = tasks.length ? Math.round(done / tasks.length * 100) : 0;
+
+      document.getElementById("task-count").textContent = tasks.length
+        ? done + "/" + tasks.length + " выполнено"
+        : "";
+
+      document.getElementById("progress-fill").style.width = pct + "%";
+
+      const list = document.getElementById("task-list");
+      if (!tasks.length) {
+        list.innerHTML = '<div class="empty">Задач на сегодня нет</div>';
+        return;
+      }
+
+      list.innerHTML = tasks.map(t => `
+        <div class="task-item">
+          <div class="task-dot" style="background:${priorityColors[t.priority] || '#888'}"></div>
+          <span class="task-text ${t.done ? 'task-text--done' : ''}">${t.text}</span>
+          <div class="task-check ${t.done ? 'task-check--done' : ''}">${t.done ? '✓' : ''}</div>
+        </div>
+      `).join("");
+    }
+
+    updateClock();
+    renderTasks();
+    setInterval(updateClock, 1000);
+    setInterval(renderTasks, 5000);
+  </script>
+</body>
+</html>

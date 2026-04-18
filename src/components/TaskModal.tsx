@@ -16,6 +16,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSave: (task: NewTask) => void;
+  defaultDate?: string;
 }
 
 const categories = ["Работа", "Личное", "Развитие", "Здоровье", "Общее"];
@@ -36,11 +37,11 @@ const advanceOptions = [
   { value: "custom", label: "Своё время" },
 ];
 
-const TaskModal = ({ open, onClose, onSave }: Props) => {
+const TaskModal = ({ open, onClose, onSave, defaultDate }: Props) => {
   const [text, setText] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
   const [category, setCategory] = useState("Работа");
-  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(() => defaultDate ?? new Date().toISOString().split("T")[0]);
   const [advance, setAdvance] = useState("none");
   const [advanceTime, setAdvanceTime] = useState("");
 
@@ -49,11 +50,11 @@ const TaskModal = ({ open, onClose, onSave }: Props) => {
       setText("");
       setPriority("medium");
       setCategory("Работа");
-      setDate(new Date().toISOString().split("T")[0]);
+      setDate(defaultDate ?? new Date().toISOString().split("T")[0]);
       setAdvance("none");
       setAdvanceTime("");
     }
-  }, [open]);
+  }, [open, defaultDate]);
 
   const handleSave = () => {
     if (!text.trim()) return;

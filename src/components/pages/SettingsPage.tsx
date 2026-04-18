@@ -82,35 +82,49 @@ const SettingsPage = () => {
       </div>
 
       {/* Install */}
-      {(canInstall || isInstalled) && (
-        <div className="section">
-          <h2 className="section-title">Приложение</h2>
-          <div className="settings-list">
-            {isInstalled ? (
-              <div className="settings-row">
-                <div className="settings-icon-wrap settings-icon-wrap--green">
-                  <Icon name="CheckCircle" size={16} />
-                </div>
-                <div className="settings-info">
-                  <span className="settings-label">Приложение установлено</span>
-                  <span className="settings-desc">Работает как нативное приложение</span>
-                </div>
+      <div className="section">
+        <h2 className="section-title">Приложение</h2>
+        <div className="settings-list">
+          {isInstalled ? (
+            <div className="settings-row">
+              <div className="settings-icon-wrap settings-icon-wrap--green">
+                <Icon name="CheckCircle" size={16} />
               </div>
-            ) : (
-              <button className="settings-row settings-row--link" onClick={install}>
-                <div className="settings-icon-wrap settings-icon-wrap--accent">
-                  <Icon name="Download" size={16} />
-                </div>
-                <div className="settings-info">
-                  <span className="settings-label">Установить на устройство</span>
-                  <span className="settings-desc">Добавить на главный экран, работает офлайн</span>
-                </div>
-                <Icon name="ChevronRight" size={16} />
-              </button>
-            )}
-          </div>
+              <div className="settings-info">
+                <span className="settings-label">Приложение установлено</span>
+                <span className="settings-desc">Работает как нативное приложение</span>
+              </div>
+            </div>
+          ) : canInstall ? (
+            <button className="settings-row settings-row--link" onClick={install}>
+              <div className="settings-icon-wrap settings-icon-wrap--accent">
+                <Icon name="Download" size={16} />
+              </div>
+              <div className="settings-info">
+                <span className="settings-label">Установить на устройство</span>
+                <span className="settings-desc">Добавить на главный экран, работает офлайн</span>
+              </div>
+              <Icon name="ChevronRight" size={16} />
+            </button>
+          ) : null}
+          <a
+            className="settings-row settings-row--link"
+            href="/widget.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ textDecoration: "none" }}
+          >
+            <div className="settings-icon-wrap" style={{ background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>
+              <Icon name="Smartphone" size={16} />
+            </div>
+            <div className="settings-info">
+              <span className="settings-label">Виджет задач</span>
+              <span className="settings-desc">Открыть виджет с задачами на сегодня</span>
+            </div>
+            <Icon name="ExternalLink" size={16} />
+          </a>
         </div>
-      )}
+      </div>
 
       {/* Links */}
       <div className="section">

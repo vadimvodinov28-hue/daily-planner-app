@@ -1,10 +1,11 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import TaskModal, { type NewTask } from "@/components/TaskModal";
 
 const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 const dayLabels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-const dayLabelsFull = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
+const dayLabelsShort = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
 interface Task {
   id: number;
@@ -13,6 +14,8 @@ interface Task {
   priority: "high" | "medium" | "low";
   category: string;
   date: string;
+  advance?: string;
+  advanceTime?: string;
 }
 
 const priorityColors: Record<string, string> = {
@@ -30,25 +33,15 @@ const getFirstDayOfMonth = (year: number, month: number) => {
 const toIso = (year: number, month: number, day: number) =>
   `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
-const getWeekDates = (year: number, month: number, day: number): Date[] => {
-  const date = new Date(year, month, day);
-  const dow = date.getDay() === 0 ? 6 : date.getDay() - 1;
-  const mon = new Date(date);
-  mon.setDate(date.getDate() - dow);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(mon);
-    d.setDate(mon.getDate() + i);
-    return d;
-  });
-};
-
 const CalendarPage = () => {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [selected, setSelected] = useState(now.getDate());
   const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set());
-  const [tasks] = useLocalStorage<Task[]>("diary_tasks", []);
+  const [tasks, setTasks] = useLocalStorage<Task[]>("diary_tasks", []);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalDate, setModalDate] = useState(toIso(now.getFullYear(), now.getMonth(), now.getDate()));
 
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
@@ -65,7 +58,28 @@ const CalendarPage = () => {
 
   const tasksByDate = (iso: string) => tasks.filter((t) => t.date === iso);
 
-  // Build weeks array: each week is an array of day numbers (null = padding)
+  const openAddForDate = (iso: string) => {
+    setModalDate(iso);
+    setModalOpen(true);
+  };
+
+  const addTask = (newTask: NewTask) => {
+    setTasks((prev) => [...prev, {
+      id: Date.now(),
+      text: newTask.text,
+      done: false,
+      priority: newTask.priority,
+      category: newTask.category,
+      date: modalDate,
+      advance: newTask.advance,
+      advanceTime: newTask.advanceTime,
+    }]);
+  };
+
+  const toggleTask = (id: number) => {
+    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, done: !t.done } : t));
+  };
+
   const allCells: (number | null)[] = [
     ...Array(firstDay).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
@@ -162,29 +176,35 @@ const CalendarPage = () => {
                     if (!day) return null;
                     const iso = toIso(year, month, day);
                     const dayTasks = tasksByDate(iso);
-                    const date = new Date(year, month, day);
                     const isToday = day === now.getDate() && month === now.getMonth() && year === now.getFullYear();
                     return (
                       <div key={di} className={`cal-day-row ${isToday ? "cal-day-row--today" : ""}`}>
                         <div className="cal-day-label-full">
-                          <span className="cal-day-name">{dayLabelsFull[di]}</span>
+                          <span className="cal-day-name">{dayLabelsShort[di]}</span>
                           <span className={`cal-day-num ${isToday ? "cal-day-num--today" : ""}`}>{day}</span>
                         </div>
                         <div className="cal-day-tasks">
-                          {dayTasks.length === 0 ? (
-                            <span className="cal-day-empty">Задач нет</span>
-                          ) : (
-                            dayTasks.map((t) => (
-                              <div key={t.id} className={`cal-task-chip ${t.done ? "cal-task-chip--done" : ""}`}>
-                                <span
-                                  className="cal-task-dot"
-                                  style={{ background: priorityColors[t.priority] }}
-                                />
-                                <span className="cal-task-text">{t.text}</span>
-                                {t.done && <Icon name="Check" size={11} />}
-                              </div>
-                            ))
-                          )}
+                          {dayTasks.map((t) => (
+                            <div
+                              key={t.id}
+                              className={`cal-task-chip ${t.done ? "cal-task-chip--done" : ""}`}
+                              onClick={() => toggleTask(t.id)}
+                            >
+                              <span
+                                className="cal-task-dot"
+                                style={{ background: priorityColors[t.priority] }}
+                              />
+                              <span className="cal-task-text">{t.text}</span>
+                              {t.done && <Icon name="Check" size={11} />}
+                            </div>
+                          ))}
+                          <button
+                            className="cal-day-add-btn"
+                            onClick={() => openAddForDate(iso)}
+                          >
+                            <Icon name="Plus" size={12} />
+                            <span>Добавить</span>
+                          </button>
                         </div>
                       </div>
                     );
@@ -198,35 +218,59 @@ const CalendarPage = () => {
 
       {/* Selected day tasks */}
       <div className="section" style={{ marginTop: 8 }}>
-        <h2 className="section-title">
-          {selected} {monthNames[month]}
-          <span className="section-meta" style={{ marginLeft: 8, fontWeight: 400 }}>
-            {selectedTasks.length > 0 ? `${selectedTasks.length} задач` : ""}
-          </span>
-        </h2>
+        <div className="section-header">
+          <h2 className="section-title">
+            {selected} {monthNames[month]}
+          </h2>
+          <button
+            className="cal-add-day-btn"
+            onClick={() => openAddForDate(selectedIso)}
+          >
+            <Icon name="Plus" size={16} />
+            Задача
+          </button>
+        </div>
+
         {selectedTasks.length === 0 ? (
-          <div className="empty-state">
-            <Icon name="CalendarDays" size={28} />
-            <p>Задач на этот день нет</p>
+          <div className="cal-empty-day" onClick={() => openAddForDate(selectedIso)}>
+            <Icon name="Plus" size={20} />
+            <span>Добавить задачу на этот день</span>
           </div>
         ) : (
           <div className="event-list">
             {selectedTasks.map((t) => (
-              <div key={t.id} className={`cal-event-row ${t.done ? "cal-event-row--done" : ""}`}>
-                <span
-                  className="cal-event-bar"
-                  style={{ background: priorityColors[t.priority] }}
-                />
+              <div
+                key={t.id}
+                className={`cal-event-row ${t.done ? "cal-event-row--done" : ""}`}
+                onClick={() => toggleTask(t.id)}
+              >
+                <div className="cal-event-bar" style={{ background: priorityColors[t.priority] }} />
                 <div className="cal-event-info">
-                  <span className="event-title">{t.text}</span>
-                  <span className="event-time">{t.category}</span>
+                  <span className="cal-event-title">{t.text}</span>
+                  <span className="cal-event-cat">{t.category}</span>
                 </div>
-                {t.done && <Icon name="CheckCircle" size={16} style={{ color: "#10b981" }} />}
+                <div className={`cal-event-check ${t.done ? "cal-event-check--done" : ""}`}>
+                  {t.done && <Icon name="Check" size={11} />}
+                </div>
               </div>
             ))}
+            <button
+              className="cal-add-inline-btn"
+              onClick={() => openAddForDate(selectedIso)}
+            >
+              <Icon name="Plus" size={14} />
+              Добавить задачу
+            </button>
           </div>
         )}
       </div>
+
+      <TaskModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={addTask}
+        defaultDate={modalDate}
+      />
     </div>
   );
 };
